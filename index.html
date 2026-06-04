@@ -6,7 +6,9 @@
     <title>Lịch Chạy Xe</title>
     <script src="https://www.gstatic.com/firebasejs/9.18.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.18.0/firebase-database-compat.js"></script>
+    
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    
     <style>
         :root { color-scheme: light; } 
         body { font-family: sans-serif; background-color: #ffffff; color: #333; margin: 0; padding: 15px; }
@@ -195,7 +197,6 @@
             const trip = trips[key];
             const tripTime = new Date(trip.time);
             
-            // TỰ ĐỘNG XONG: Nếu trạng thái trong DB là completed HOẶC thời gian rước đã qua so với hiện tại
             const isDone = trip.status === "completed" || tripTime < now;
             
             const tripDayStr = trip.time.split('T')[0];
@@ -205,7 +206,6 @@
             
             tripCount++; totalRev += Number(trip.price); totalCost += totalTripCost;
             
-            // Hiệu ứng lửa chỉ bật nếu là ngày hôm nay và xe chưa chạy quá giờ rước
             const fireClass = (tripDayStr === nowDayStr && !isDone) ? 'today-fire-effect' : '';
             
             const html = `<div class="trip-item ${isDone ? 'completed-trip' : ''} ${fireClass}"><div class="trip-info"><strong style="font-size: 15px;">${trip.from} <span class="km-badge">🔥 ${trip.km} KM 🔥</span> ${trip.to}</strong><p>⏰ <span class="time-highlight">${formatDateTime(trip.time)}</span></p><p>📞 Khách: ${trip.phone}</p>${trip.note ? `<p class="trip-note">📝 Ghi chú: ${trip.note}</p>` : ''}${trip.driverType === 'Tài xế mướn' ? `<p>👤 TX Mướn: ${trip.hiredDriverName} - ${trip.hiredDriverPhone}</p>` : ''}<p>💰 Thu: ${formatNumber(trip.price)}đ | 📉 Chi: ${formatNumber(totalTripCost)}đ</p><p>💎 Thực lãi: <span style="color:#28a745; font-weight:bold;">${formatNumber(netProfit)}đ</span></p><span class="driver-tag ${trip.driverType === 'Tài xế nhà' ? 'tag-nha' : 'tag-muon'}">${trip.driverType}</span><div class="action-btns"><a href="tel:${trip.phone}" class="btn-call">📞 GỌI KHÁCH</a><button class="btn-edit" onclick="editTrip('${key}')">✏️ SỬA</button><button class="btn-done ${isDone ? 'is-completed' : ''}" onclick="toggleComplete('${key}')">${isDone ? 'XONG' : 'XỬ LÝ'}</button><button class="btn-delete-trip" onclick="deleteTrip('${key}')">🗑️</button></div></div></div>`;
@@ -247,7 +247,7 @@
                 "Thời Gian": formatDateTime(t.time),
                 "Điểm Đi": t.from,
                 "Điểm Đến": t.to,
-                "Khách": t.phone,
+                "Khách Hàng": t.phone,
                 "Số KM": t.km,
                 "Doanh Thu": t.price,
                 "Chi Phí": cost,
@@ -256,31 +256,27 @@
             };
         });
         
+        // 1. Dùng SheetJS dựng file nhị phân xịn đét 
         const worksheet = XLSX.utils.json_to_sheet(sortedData);
         const workbook = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(workbook, worksheet, "Bao_Cao");
+        XLSX.utils.book_append_sheet(workbook, worksheet, "LichChayXe");
         
-        try {
-            // Định dạng mã hóa Base64 giúp App điện thoại nhận diện và kích hoạt mở file trực tiếp
-            const wbout = XLSX.write(workbook, { bookType: 'xlsx', type: 'base64' });
-            const url = "data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64," + wbout;
-            
-            const a = document.createElement("a");
-            a.href = url;
-            a.download = "Lich_Chay_Xe.xlsx";
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            
-            alert("Đã xuất file Excel thành công!");
-        } catch (error) {
-            try {
-                const wbout = XLSX.write(workbook, { bookType: 'xlsx', type: 'base64' });
-                window.open("data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64," + wbout);
-            } catch (e) {
-                alert("App chặn quyền tải file. Bác hãy mở link ứng dụng bằng trình duyệt Chrome/Safari để xuất nhé!");
-            }
-        }
+        // 2. Mã hóa sang dạng chuỗi Base64 cực mạnh để vượt rào WebView
+        const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'base64' });
+        const excelUri = "data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64," + excelBuffer;
+
+        // 3. ĐẶC TRỊ CHO APP WEBVIEW: Ép hệ thống dùng trình duyệt ngoài để mở tải
+        // Tạo một thẻ link ẩn nhắm mục tiêu ra thẳng bên ngoài (_system hoặc _blank)
+        const a = document.createElement("a");
+        a.href = excelUri;
+        a.download = "Lich_Chay_Xe.xlsx";
+        a.target = "_blank"; 
+        // Dòng này cực kỳ quan trọng giúp các bộ bọc app hiểu cần ném link này ra trình duyệt Chrome gốc
+        a.setAttribute("data-rel", "external"); 
+        
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
     }
 
     function deleteOldData() { 
