@@ -260,8 +260,27 @@
         const workbook = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(workbook, worksheet, "Bao_Cao");
         
-        XLSX.writeFile(workbook, "Lich_Chay_Xe.xlsx");
-        alert("Đã xuất file Excel thành công!");
+        try {
+            // Định dạng mã hóa Base64 giúp App điện thoại nhận diện và kích hoạt mở file trực tiếp
+            const wbout = XLSX.write(workbook, { bookType: 'xlsx', type: 'base64' });
+            const url = "data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64," + wbout;
+            
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = "Lich_Chay_Xe.xlsx";
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            
+            alert("Đã xuất file Excel thành công!");
+        } catch (error) {
+            try {
+                const wbout = XLSX.write(workbook, { bookType: 'xlsx', type: 'base64' });
+                window.open("data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64," + wbout);
+            } catch (e) {
+                alert("App chặn quyền tải file. Bác hãy mở link ứng dụng bằng trình duyệt Chrome/Safari để xuất nhé!");
+            }
+        }
     }
 
     function deleteOldData() { 
