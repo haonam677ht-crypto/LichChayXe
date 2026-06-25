@@ -116,7 +116,7 @@
     <div id="displayArea">
         <div class="section-title">HÔM NAY</div><div id="todayList"></div>
         <div class="section-title">SẮP TỚI</div><div id="upcomingList"></div>
-        <div class="section-title">ĐÃ QUA (TỪ 01/05)</div><div id="pastList"></div>
+        <div class="section-title" id="pastSectionTitle">ĐÃ QUA</div><div id="pastList"></div>
     </div>
 </div>
 
@@ -193,6 +193,8 @@
         
         const sortedKeys = Object.keys(trips).sort((a, b) => new Date(trips[a].time) - new Date(trips[b].time));
 
+        let oldestTripDate = null; // Biến dùng để lấy ngày của chuyến cũ nhất
+
         sortedKeys.forEach(key => {
             const trip = trips[key];
             const tripTime = new Date(trip.time);
@@ -209,8 +211,30 @@
             const fireClass = (tripDayStr === nowDayStr && !isDone) ? 'today-fire-effect' : '';
             
             const html = `<div class="trip-item ${isDone ? 'completed-trip' : ''} ${fireClass}"><div class="trip-info"><strong style="font-size: 15px;">${trip.from} <span class="km-badge">🔥 ${trip.km} KM 🔥</span> ${trip.to}</strong><p>⏰ <span class="time-highlight">${formatDateTime(trip.time)}</span></p><p>📞 Khách: ${trip.phone}</p>${trip.note ? `<p class="trip-note">📝 Ghi chú: ${trip.note}</p>` : ''}${trip.driverType === 'Tài xế mướn' ? `<p>👤 TX Mướn: ${trip.hiredDriverName} - ${trip.hiredDriverPhone}</p>` : ''}<p>💰 Thu: ${formatNumber(trip.price)}đ | 📉 Chi: ${formatNumber(totalTripCost)}đ</p><p>💎 Thực lãi: <span style="color:#28a745; font-weight:bold;">${formatNumber(netProfit)}đ</span></p><span class="driver-tag ${trip.driverType === 'Tài xế nhà' ? 'tag-nha' : 'tag-muon'}">${trip.driverType}</span><div class="action-btns"><a href="tel:${trip.phone}" class="btn-call">📞 GỌI KHÁCH</a><button class="btn-edit" onclick="editTrip('${key}')">✏️ SỬA</button><button class="btn-done ${isDone ? 'is-completed' : ''}" onclick="toggleComplete('${key}')">${isDone ? 'XONG' : 'XỬ LÝ'}</button><button class="btn-delete-trip" onclick="deleteTrip('${key}')">🗑️</button></div></div></div>`;
-            if (tripDayStr === nowDayStr) lists.today.innerHTML += html; else if (tripDayStr > nowDayStr) lists.upcoming.innerHTML += html; else lists.past.innerHTML += html;
+            
+            if (tripDayStr === nowDayStr) {
+                lists.today.innerHTML += html; 
+            } else if (tripDayStr > nowDayStr) {
+                lists.upcoming.innerHTML += html; 
+            } else {
+                lists.past.innerHTML += html;
+                // Lưu lại ngày của chuyến xe cũ nhất trong danh sách "ĐÃ QUA"
+                if (!oldestTripDate || tripTime < oldestTripDate) {
+                    oldestTripDate = tripTime;
+                }
+            }
         });
+
+        // TỰ ĐỘNG ĐỔI TIÊU ĐỀ THEO THÁNG CỦA CHUYẾN CŨ NHẤT
+        const titleElement = document.getElementById('pastSectionTitle');
+        if (oldestTripDate) {
+            const day = String(oldestTripDate.getDate()).padStart(2, '0');
+            const month = String(oldestTripDate.getMonth() + 1).padStart(2, '0');
+            titleElement.innerText = `ĐÃ QUA (TỪ ${day}/${month})`;
+        } else {
+            titleElement.innerText = "ĐÃ QUA";
+        }
+
         document.getElementById('totalTrips').innerText = tripCount;
         document.getElementById('totalRev').innerText = formatNumber(totalRev) + "đ";
         document.getElementById('totalCost').innerText = formatNumber(totalCost) + "đ";
@@ -255,23 +279,17 @@
                 "Ghi Chú": (t.note || "").replace(/\n/g, " ")
             };
         });
-        
-        // 1. Dùng SheetJS dựng file nhị phân xịn đét 
         const worksheet = XLSX.utils.json_to_sheet(sortedData);
         const workbook = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(workbook, worksheet, "LichChayXe");
         
-        // 2. Mã hóa sang dạng chuỗi Base64 cực mạnh để vượt rào WebView
         const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'base64' });
         const excelUri = "data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64," + excelBuffer;
 
-        // 3. ĐẶC TRỊ CHO APP WEBVIEW: Ép hệ thống dùng trình duyệt ngoài để mở tải
-        // Tạo một thẻ link ẩn nhắm mục tiêu ra thẳng bên ngoài (_system hoặc _blank)
         const a = document.createElement("a");
         a.href = excelUri;
         a.download = "Lich_Chay_Xe.xlsx";
         a.target = "_blank"; 
-        // Dòng này cực kỳ quan trọng giúp các bộ bọc app hiểu cần ném link này ra trình duyệt Chrome gốc
         a.setAttribute("data-rel", "external"); 
         
         document.body.appendChild(a);
@@ -280,9 +298,24 @@
     }
 
     function deleteOldData() { 
-        if (confirm("Bác có chắc chắn muốn xoá toàn bộ dữ liệu từ ngày 01/05 đến 31/05 không?")) { 
-            const startDay = "2026-05-01";
-            const endDay = "2026-05-31T23:59:59";
+        // Thay đổi logic: Tự động nhận diện tháng trước dựa vào ngày hiện tại để xóa, không bị fix cứng tháng 5 nữa
+        const now = new Date();
+        const currentYear = now.getFullYear();
+        const currentMonth = now.getMonth(); // Tháng hiện tại (0 -> 11)
+
+        if (currentMonth === 0) { // Nếu đang là tháng 1, tháng cần xóa là tháng 12 năm trước
+            var targetYear = currentYear - 1;
+            var targetMonth = 12;
+        } else {
+            var targetYear = currentYear;
+            var targetMonth = currentMonth; // Chính là số tháng liền trước
+        }
+
+        const targetMonthStr = String(targetMonth).padStart(2, '0');
+        
+        if (confirm(`Bác có chắc chắn muốn xoá toàn bộ dữ liệu của Tháng ${targetMonth}/${targetYear} không?`)) { 
+            const startDay = `${targetYear}-${targetMonthStr}-01`;
+            const endDay = `${targetYear}-${targetMonthStr}-31T23:59:59`;
             
             let count = 0;
             for (let key in trips) { 
@@ -291,10 +324,9 @@
                     count++;
                 } 
             }
-            alert("Đã xoá thành công " + count + " chuyến xe của tháng 5!");
+            alert(`Đã xoá thành công ${count} chuyến xe của tháng ${targetMonth}!`);
         } 
     }
 </script>
 </body>
 </html>
-
