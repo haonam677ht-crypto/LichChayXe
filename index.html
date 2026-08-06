@@ -38,6 +38,22 @@
             animation: real-fire-border 0.8s infinite alternate ease-in-out;
         }
 
+        /* Thêm CSS highlight các chuyến nếu ngày đó chạy 2 tua trở lên */
+        .multiple-trips-day {
+            border-left: 5px solid #9c27b0 !important;
+            background-color: #f3e5f5 !important;
+        }
+        .multi-tua-badge {
+            background: #9c27b0;
+            padding: 2px 6px;
+            border-radius: 3px;
+            color: white;
+            font-weight: bold;
+            font-size: 11px;
+            margin-left: 5px;
+            display: inline-block;
+        }
+
         @keyframes real-fire-border {
             0% { box-shadow: 0 0 8px #fff, 0 -4px 12px #ff8c00, 0 -8px 20px #ff4500, 0 -12px 30px #ff0000; border-color: #ff8c00; }
             50% { box-shadow: 0 0 12px #fff, 0 -6px 18px #ffa500, 0 -12px 30px #ff4500, 0 -18px 45px #e60000; border-color: #ff4500; }
@@ -76,6 +92,19 @@
     <h2>LỊCH CHẠY XE</h2>
     <input type="hidden" id="editKey">
     <div class="form-group"><label>Thời gian rước</label><input type="datetime-local" id="time"></div>
+    
+    <!-- Thêm chọn số ngày đi -->
+    <div class="form-group">
+        <label>Số ngày đi</label>
+        <select id="duration">
+            <option value="1">1 ngày (đi về trong ngày)</option>
+            <option value="2">2 ngày</option>
+            <option value="3">3 ngày</option>
+            <option value="4">4 ngày</option>
+            <option value="5">5 ngày</option>
+        </select>
+    </div>
+
     <div class="form-group">
         <label>Điểm đi</label>
         <input type="text" id="from">
@@ -176,7 +205,21 @@
     function saveTrip() {
         const key = document.getElementById('editKey').value;
         const tripData = {
-            time: document.getElementById('time').value, from: document.getElementById('from').value, to: document.getElementById('to').value, phone: document.getElementById('phone').value, note: document.getElementById('note').value || "", price: getRawNumber('price'), km: Number(document.getElementById('km').value) || 0, gasPrice: getRawNumber('gasPrice') || 24220, road: getRawNumber('road'), driverType: document.getElementById('driverType').value, hiredDriverName: document.getElementById('hiredDriverName').value || "", hiredDriverPhone: document.getElementById('hiredDriverPhone').value || "", driverCost: getRawNumber('driverCost'), status: key ? (trips[key].status || "pending") : "pending"
+            time: document.getElementById('time').value, 
+            duration: document.getElementById('duration').value, /* Đã thêm lưu số ngày */
+            from: document.getElementById('from').value, 
+            to: document.getElementById('to').value, 
+            phone: document.getElementById('phone').value, 
+            note: document.getElementById('note').value || "", 
+            price: getRawNumber('price'), 
+            km: Number(document.getElementById('km').value) || 0, 
+            gasPrice: getRawNumber('gasPrice') || 24220, 
+            road: getRawNumber('road'), 
+            driverType: document.getElementById('driverType').value, 
+            hiredDriverName: document.getElementById('hiredDriverName').value || "", 
+            hiredDriverPhone: document.getElementById('hiredDriverPhone').value || "", 
+            driverCost: getRawNumber('driverCost'), 
+            status: key ? (trips[key].status || "pending") : "pending"
         };
         if(!tripData.time || !tripData.from) return alert("Bác điền thiếu thông tin rồi!");
         if(key) db.ref('trips/' + key).update(tripData);
@@ -205,8 +248,16 @@
         
         const sortedKeys = Object.keys(trips).sort((a, b) => new Date(trips[a].time) - new Date(trips[b].time));
 
-        let oldestTripDate = null; // Biến dùng để lấy ngày của chuyến cũ nhất
+        let oldestTripDate = null; 
 
+        // Quét đếm số chuyến trong từng ngày để highlight tua
+        const dateCounts = {};
+        sortedKeys.forEach(key => {
+            if (trips[key].time) {
+                const day = trips[key].time.split('T')[0];
+                dateCounts[day] = (dateCounts[day] || 0) + 1;
+            }
+        });
         sortedKeys.forEach(key => {
             const trip = trips[key];
             const tripTime = new Date(trip.time);
@@ -222,7 +273,13 @@
             
             const fireClass = (tripDayStr === nowDayStr && !isDone) ? 'today-fire-effect' : '';
             
-            const html = `<div class="trip-item ${isDone ? 'completed-trip' : ''} ${fireClass}"><div class="trip-info"><strong style="font-size: 15px;">${trip.from} <span class="km-badge">🔥 ${trip.km} KM 🔥</span> ${trip.to}</strong><p>⏰ <span class="time-highlight">${formatDateTime(trip.time)}</span></p><p>📞 Khách: ${trip.phone}</p>${trip.note ? `<p class="trip-note">📝 Ghi chú: ${trip.note}</p>` : ''}${trip.driverType === 'Tài xế mướn' ? `<p>👤 TX Mướn: ${trip.hiredDriverName} - ${trip.hiredDriverPhone}</p>` : ''}<p>💰 Thu: ${formatNumber(trip.price)}đ | 📉 Chi: ${formatNumber(totalTripCost)}đ</p><p>💎 Thực lãi: <span style="color:#28a745; font-weight:bold;">${formatNumber(netProfit)}đ</span></p><span class="driver-tag ${trip.driverType === 'Tài xế nhà' ? 'tag-nha' : 'tag-muon'}">${trip.driverType}</span><div class="action-btns"><a href="tel:${trip.phone}" class="btn-call">📞 GỌI KHÁCH</a><button class="btn-edit" onclick="editTrip('${key}')">✏️ SỬA</button><button class="btn-done ${isDone ? 'is-completed' : ''}" onclick="toggleComplete('${key}')">${isDone ? 'XONG' : 'XỬ LÝ'}</button><button class="btn-delete-trip" onclick="deleteTrip('${key}')">🗑️</button></div></div></div>`;
+            // Logic nhận diện chạy nhiều tua và hiển thị số ngày
+            const isMultiTua = (dateCounts[tripDayStr] >= 2);
+            const multiTuaClass = (isMultiTua && !isDone) ? 'multiple-trips-day' : '';
+            const multiTuaBadge = isMultiTua ? `<span class="multi-tua-badge">Chạy ${dateCounts[tripDayStr]} tua</span>` : '';
+            const durationText = (trip.duration && trip.duration > 1) ? `<span style="color: #007bff; font-weight: bold; margin-left: 5px;">(Đi ${trip.duration} ngày)</span>` : '';
+
+            const html = `<div class="trip-item ${isDone ? 'completed-trip' : ''} ${fireClass} ${multiTuaClass}"><div class="trip-info"><strong style="font-size: 15px;">${trip.from} <span class="km-badge">🔥 ${trip.km} KM 🔥</span> ${trip.to}</strong><p>⏰ <span class="time-highlight">${formatDateTime(trip.time)}</span>${durationText}</p><p>📞 Khách: ${trip.phone}</p>${trip.note ? `<p class="trip-note">📝 Ghi chú: ${trip.note}</p>` : ''}${trip.driverType === 'Tài xế mướn' ? `<p>👤 TX Mướn: ${trip.hiredDriverName} - ${trip.hiredDriverPhone}</p>` : ''}<p>💰 Thu: ${formatNumber(trip.price)}đ | 📉 Chi: ${formatNumber(totalTripCost)}đ</p><p>💎 Thực lãi: <span style="color:#28a745; font-weight:bold;">${formatNumber(netProfit)}đ</span></p><span class="driver-tag ${trip.driverType === 'Tài xế nhà' ? 'tag-nha' : 'tag-muon'}">${trip.driverType}</span>${multiTuaBadge}<div class="action-btns"><a href="tel:${trip.phone}" class="btn-call">📞 GỌI KHÁCH</a><button class="btn-edit" onclick="editTrip('${key}')">✏️ SỬA</button><button class="btn-done ${isDone ? 'is-completed' : ''}" onclick="toggleComplete('${key}')">${isDone ? 'XONG' : 'XỬ LÝ'}</button><button class="btn-delete-trip" onclick="deleteTrip('${key}')">🗑️</button></div></div></div>`;
             
             if (tripDayStr === nowDayStr) {
                 lists.today.innerHTML += html; 
@@ -230,14 +287,12 @@
                 lists.upcoming.innerHTML += html; 
             } else {
                 lists.past.innerHTML += html;
-                // Lưu lại ngày của chuyến xe cũ nhất trong danh sách "ĐÃ QUA"
                 if (!oldestTripDate || tripTime < oldestTripDate) {
                     oldestTripDate = tripTime;
                 }
             }
         });
 
-        // TỰ ĐỘNG ĐỔI TIÊU ĐỀ THEO THÁNG CỦA CHUYẾN CŨ NHẤT
         const titleElement = document.getElementById('pastSectionTitle');
         if (oldestTripDate) {
             const day = String(oldestTripDate.getDate()).padStart(2, '0');
@@ -254,7 +309,25 @@
     }
 
     function editTrip(key) {
-        const t = trips[key]; document.getElementById('editKey').value = key; document.getElementById('time').value = t.time; document.getElementById('from').value = t.from; document.getElementById('to').value = t.to; document.getElementById('phone').value = t.phone; document.getElementById('note').value = t.note || ""; document.getElementById('price').value = formatNumber(t.price); document.getElementById('km').value = t.km; document.getElementById('road').value = formatNumber(t.road || 0); document.getElementById('gasPrice').value = formatNumber(t.gasPrice || 24220); document.getElementById('driverType').value = t.driverType; document.getElementById('hiredDriverName').value = t.hiredDriverName || ""; document.getElementById('hiredDriverPhone').value = t.hiredDriverPhone || ""; document.getElementById('driverCost').value = formatNumber(t.driverCost || 0); toggleDriverFields(); document.getElementById('mainBtn').innerText = "CẬP NHẬT"; window.scrollTo(0,0);
+        const t = trips[key]; 
+        document.getElementById('editKey').value = key; 
+        document.getElementById('time').value = t.time; 
+        document.getElementById('duration').value = t.duration || "1"; /* Load lại số ngày */
+        document.getElementById('from').value = t.from; 
+        document.getElementById('to').value = t.to; 
+        document.getElementById('phone').value = t.phone; 
+        document.getElementById('note').value = t.note || ""; 
+        document.getElementById('price').value = formatNumber(t.price); 
+        document.getElementById('km').value = t.km; 
+        document.getElementById('road').value = formatNumber(t.road || 0); 
+        document.getElementById('gasPrice').value = formatNumber(t.gasPrice || 24220); 
+        document.getElementById('driverType').value = t.driverType; 
+        document.getElementById('hiredDriverName').value = t.hiredDriverName || ""; 
+        document.getElementById('hiredDriverPhone').value = t.hiredDriverPhone || ""; 
+        document.getElementById('driverCost').value = formatNumber(t.driverCost || 0); 
+        toggleDriverFields(); 
+        document.getElementById('mainBtn').innerText = "CẬP NHẬT"; 
+        window.scrollTo(0,0);
     }
 
     function resetForm() {
@@ -262,6 +335,7 @@
         document.getElementById('editKey').value = ''; 
         document.getElementById('mainBtn').innerText = "THÊM CHUYẾN"; 
         ['time', 'from', 'to', 'phone', 'note', 'price', 'km', 'road', 'hiredDriverName', 'hiredDriverPhone', 'driverCost'].forEach(id => document.getElementById(id).value = ''); 
+        document.getElementById('duration').value = '1'; /* Reset số ngày */
         document.getElementById('gasPrice').value = currentGas; 
         document.getElementById('driverType').value = "Tài xế nhà"; 
         toggleDriverFields();
@@ -281,6 +355,7 @@
             return {
                 "Trạng Thái": (t.status === "completed" || tripTime < now) ? "Xong" : "Chờ",
                 "Thời Gian": formatDateTime(t.time),
+                "Số Ngày Đi": t.duration ? t.duration + " ngày" : "1 ngày", /* Bổ sung cột excel */
                 "Điểm Đi": t.from,
                 "Điểm Đến": t.to,
                 "Khách Hàng": t.phone,
@@ -291,35 +366,26 @@
                 "Ghi Chú": (t.note || "").replace(/\n/g, " ")
             };
         });
+        
         const worksheet = XLSX.utils.json_to_sheet(sortedData);
         const workbook = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(workbook, worksheet, "LichChayXe");
         
-        const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'base64' });
-        const excelUri = "data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64," + excelBuffer;
-
-        const a = document.createElement("a");
-        a.href = excelUri;
-        a.download = "Lich_Chay_Xe.xlsx";
-        a.target = "_blank"; 
-        a.setAttribute("data-rel", "external"); 
-        
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
+        // Fix lỗi xuất excel bằng hàm writeFile chuẩn của thư viện SheetJS
+        XLSX.writeFile(workbook, "Lich_Chay_Xe.xlsx");
     }
-function deleteOldData() { 
-        // Thay đổi logic: Tự động nhận diện tháng trước dựa vào ngày hiện tại để xóa, không bị fix cứng tháng 5 nữa
+
+    function deleteOldData() { 
         const now = new Date();
         const currentYear = now.getFullYear();
-        const currentMonth = now.getMonth(); // Tháng hiện tại (0 -> 11)
+        const currentMonth = now.getMonth(); 
 
-        if (currentMonth === 0) { // Nếu đang là tháng 1, tháng cần xóa là tháng 12 năm trước
+        if (currentMonth === 0) { 
             var targetYear = currentYear - 1;
             var targetMonth = 12;
         } else {
             var targetYear = currentYear;
-            var targetMonth = currentMonth; // Chính là số tháng liền trước
+            var targetMonth = currentMonth; 
         }
 
         const targetMonthStr = String(targetMonth).padStart(2, '0');
