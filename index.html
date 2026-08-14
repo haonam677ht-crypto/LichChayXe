@@ -4,9 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Lịch Chạy Xe</title>
+    <!-- Thêm thư viện Auth của Firebase -->
     <script src="https://www.gstatic.com/firebasejs/9.18.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.18.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.18.0/firebase-database-compat.js"></script>
-    
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     
     <style>
@@ -20,46 +21,22 @@
         input, select, textarea { 
             width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 5px; 
             box-sizing: border-box; background-color: #fff; color: #000; font-size: 16px;
-            transition: border-color 0.3s ease;
-            outline: none;
+            transition: border-color 0.3s ease; outline: none;
         }
 
-        input:focus, select:focus, textarea:focus {
-            border-color: #007bff;
-            box-shadow: 0 0 5px rgba(0, 123, 255, 0.25);
-        }
+        input:focus, select:focus, textarea:focus { border-color: #007bff; box-shadow: 0 0 5px rgba(0, 123, 255, 0.25); }
 
-        .today-fire-effect {
-            position: relative;
-            border: 2px solid #ff4500 !important;
-            margin-bottom: 20px !important;
-            border-radius: 8px !important;
-            background: linear-gradient(to bottom, #fffdfa, #ffffff);
-            animation: real-fire-border 0.8s infinite alternate ease-in-out;
-        }
+        /* CSS cho màn hình đăng nhập */
+        #loginArea { text-align: center; margin-top: 50px; background: #f8f9fa; padding: 20px; border-radius: 8px; border: 1px solid #ddd; }
+        #appArea { display: none; } /* Ẩn phần mềm khi chưa đăng nhập */
+        .btn-login { background-color: #007bff; color: white; border: none; width: 100%; padding: 12px; border-radius: 5px; font-weight: bold; cursor: pointer; margin-top: 15px; }
+        .btn-logout { background-color: #6c757d; color: white; border: none; padding: 8px 12px; border-radius: 5px; cursor: pointer; float: right; font-size: 12px; }
 
-        /* Thêm CSS highlight các chuyến nếu ngày đó chạy 2 tua trở lên */
-        .multiple-trips-day {
-            border-left: 5px solid #9c27b0 !important;
-            background-color: #f3e5f5 !important;
-        }
-        .multi-tua-badge {
-            background: #9c27b0;
-            padding: 2px 6px;
-            border-radius: 3px;
-            color: white;
-            font-weight: bold;
-            font-size: 11px;
-            margin-left: 5px;
-            display: inline-block;
-        }
-
-        @keyframes real-fire-border {
-            0% { box-shadow: 0 0 8px #fff, 0 -4px 12px #ff8c00, 0 -8px 20px #ff4500, 0 -12px 30px #ff0000; border-color: #ff8c00; }
-            50% { box-shadow: 0 0 12px #fff, 0 -6px 18px #ffa500, 0 -12px 30px #ff4500, 0 -18px 45px #e60000; border-color: #ff4500; }
-            100% { box-shadow: 0 0 6px #fff, 0 -3px 10px #ff4500, 0 -6px 15px #d2691e, 0 -10px 25px #8b0000; border-color: #b22222; }
-        }
-
+        /* Các CSS cũ của bác giữ nguyên ở dưới */
+        .today-fire-effect { position: relative; border: 2px solid #ff4500 !important; margin-bottom: 20px !important; border-radius: 8px !important; background: linear-gradient(to bottom, #fffdfa, #ffffff); animation: real-fire-border 0.8s infinite alternate ease-in-out; }
+        .multiple-trips-day { border-left: 5px solid #9c27b0 !important; background-color: #f3e5f5 !important; }
+        .multi-tua-badge { background: #9c27b0; padding: 2px 6px; border-radius: 3px; color: white; font-weight: bold; font-size: 11px; margin-left: 5px; display: inline-block; }
+        @keyframes real-fire-border { 0% { box-shadow: 0 0 8px #fff, 0 -4px 12px #ff8c00, 0 -8px 20px #ff4500, 0 -12px 30px #ff0000; border-color: #ff8c00; } 50% { box-shadow: 0 0 12px #fff, 0 -6px 18px #ffa500, 0 -12px 30px #ff4500, 0 -18px 45px #e60000; border-color: #ff4500; } 100% { box-shadow: 0 0 6px #fff, 0 -3px 10px #ff4500, 0 -6px 15px #d2691e, 0 -10px 25px #8b0000; border-color: #b22222; } }
         .btn-group { display: flex; gap: 10px; margin-top: 15px; }
         .btn-add { background-color: #28a745; color: white; border: none; flex: 2; padding: 12px; border-radius: 5px; font-weight: bold; cursor: pointer; }
         .btn-excel { background-color: #007bff; color: white; border: none; flex: 1; padding: 12px; border-radius: 5px; cursor: pointer; font-weight: bold; }
@@ -89,63 +66,75 @@
 <body>
 
 <div class="container">
-    <h2>LỊCH CHẠY XE</h2>
-    <input type="hidden" id="editKey">
-    <div class="form-group"><label>Thời gian rước</label><input type="datetime-local" id="time"></div>
     
-    <!-- Thêm chọn số ngày đi -->
-    <div class="form-group">
-        <label>Số ngày đi</label>
-        <select id="duration">
-            <option value="1">1 ngày (đi về trong ngày)</option>
-            <option value="2">2 ngày</option>
-            <option value="3">3 ngày</option>
-            <option value="4">4 ngày</option>
-            <option value="5">5 ngày</option>
-        </select>
+    <!-- KHU VỰC ĐĂNG NHẬP -->
+    <div id="loginArea">
+        <h2>🔒 Đăng Nhập Hệ Thống</h2>
+        <div class="form-group">
+            <label>Email</label>
+            <input type="email" id="loginEmail" placeholder="Nhập email...">
+        </div>
+        <div class="form-group">
+            <label>Mật khẩu</label>
+            <input type="password" id="loginPassword" placeholder="Nhập mật khẩu...">
+        </div>
+        <button class="btn-login" onclick="login()">ĐĂNG NHẬP</button>
     </div>
 
-    <div class="form-group">
-        <label>Điểm đi</label>
-        <input type="text" id="from">
-    </div>
-    <div class="form-group">
-        <label>Điểm đến</label>
-        <input type="text" id="to">
-    </div>
+    <!-- KHU VỰC PHẦN MỀM (Bị ẩn cho đến khi đăng nhập) -->
+    <div id="appArea">
+        <button class="btn-logout" onclick="logout()">Đăng xuất</button>
+        <h2>LỊCH CHẠY XE</h2>
+        <input type="hidden" id="editKey">
+        <div class="form-group"><label>Thời gian rước</label><input type="datetime-local" id="time"></div>
+        
+        <div class="form-group">
+            <label>Số ngày đi</label>
+            <select id="duration">
+                <option value="1">1 ngày (đi về trong ngày)</option>
+                <option value="2">2 ngày</option>
+                <option value="3">3 ngày</option>
+                <option value="4">4 ngày</option>
+                <option value="5">5 ngày</option>
+            </select>
+        </div>
 
-    <div class="form-group"><label>SĐT/Tên Khách</label><input type="text" id="phone"></div>
-    <div class="form-group"><label>Ghi chú</label><textarea id="note" rows="2"></textarea></div>
-    <div style="display: flex; gap: 10px;">
-        <div class="form-group" style="flex: 1;"><label>Giá chuyến</label><input type="text" id="price" placeholder="2.300.000" oninput="formatInputCurrency(this)"></div>
-        <div class="form-group" style="flex: 1;"><label>Số KM</label><input type="number" id="km"></div>
-    </div>
-    <div style="display: flex; gap: 10px;">
-        <div class="form-group" style="flex: 1;"><label>Giá xăng/lít</label><input type="text" id="gasPrice" value="24.220" oninput="formatInputCurrency(this)"></div>
-        <div class="form-group" style="flex: 1;"><label>Cầu đường</label><input type="text" id="road" oninput="formatInputCurrency(this)"></div>
-    </div>
-    <div class="form-group"><label>Loại tài xế</label><select id="driverType" onchange="toggleDriverFields()"><option value="Tài xế nhà">Tài xế nhà</option><option value="Tài xế mướn">Tài xế mướn</option></select></div>
-    <div id="hiredDriverFields">
-        <div class="form-group"><label>Tên tài xế mướn</label><input type="text" id="hiredDriverName"></div>
-        <div class="form-group"><label>Số điện thoại tài xế</label><input type="text" id="hiredDriverPhone"></div>
-        <div class="form-group"><label>Tiền thuê tài xế</label><input type="text" id="driverCost" oninput="formatInputCurrency(this)"></div>
-    </div>
-    <div class="btn-group">
-        <button id="mainBtn" class="btn-add" onclick="saveTrip()">THÊM CHUYẾN</button>
-        <button class="btn-excel" onclick="exportToExcel()">XUẤT EXCEL</button>
-    </div>
-    <button class="btn-delete-old" onclick="deleteOldData()">Xoá dữ liệu tháng cũ</button>
-    <div class="summary-box">
-        <div class="summary-item">Tổng chuyến: <span id="totalTrips" class="summary-val">0</span></div>
-        <div class="summary-item">Doanh thu: <span id="totalRev" class="summary-val">0</span></div>
-        <div class="summary-item">Chi phí: <span id="totalCost" class="summary-val">0</span></div>
-        <div class="summary-item">Lợi nhuận: <span id="totalProfit" class="summary-val">0</span></div>
-    </div>
-    <hr>
-    <div id="displayArea">
-        <div class="section-title">HÔM NAY</div><div id="todayList"></div>
-        <div class="section-title">SẮP TỚI</div><div id="upcomingList"></div>
-        <div class="section-title" id="pastSectionTitle">ĐÃ QUA</div><div id="pastList"></div>
+        <div class="form-group"><label>Điểm đi</label><input type="text" id="from"></div>
+        <div class="form-group"><label>Điểm đến</label><input type="text" id="to"></div>
+
+        <div class="form-group"><label>SĐT/Tên Khách</label><input type="text" id="phone"></div>
+        <div class="form-group"><label>Ghi chú</label><textarea id="note" rows="2"></textarea></div>
+        <div style="display: flex; gap: 10px;">
+            <div class="form-group" style="flex: 1;"><label>Giá chuyến</label><input type="text" id="price" placeholder="2.300.000" oninput="formatInputCurrency(this)"></div>
+            <div class="form-group" style="flex: 1;"><label>Số KM</label><input type="number" id="km"></div>
+        </div>
+        <div style="display: flex; gap: 10px;">
+            <div class="form-group" style="flex: 1;"><label>Giá xăng/lít</label><input type="text" id="gasPrice" value="24.220" oninput="formatInputCurrency(this)"></div>
+            <div class="form-group" style="flex: 1;"><label>Cầu đường</label><input type="text" id="road" oninput="formatInputCurrency(this)"></div>
+        </div>
+        <div class="form-group"><label>Loại tài xế</label><select id="driverType" onchange="toggleDriverFields()"><option value="Tài xế nhà">Tài xế nhà</option><option value="Tài xế mướn">Tài xế mướn</option></select></div>
+        <div id="hiredDriverFields">
+            <div class="form-group"><label>Tên tài xế mướn</label><input type="text" id="hiredDriverName"></div>
+            <div class="form-group"><label>Số điện thoại tài xế</label><input type="text" id="hiredDriverPhone"></div>
+            <div class="form-group"><label>Tiền thuê tài xế</label><input type="text" id="driverCost" oninput="formatInputCurrency(this)"></div>
+        </div>
+        <div class="btn-group">
+            <button id="mainBtn" class="btn-add" onclick="saveTrip()">THÊM CHUYẾN</button>
+            <button class="btn-excel" onclick="exportToExcel()">XUẤT EXCEL</button>
+        </div>
+        <button class="btn-delete-old" onclick="deleteOldData()">Xoá dữ liệu tháng cũ</button>
+        <div class="summary-box">
+            <div class="summary-item">Tổng chuyến: <span id="totalTrips" class="summary-val">0</span></div>
+            <div class="summary-item">Doanh thu: <span id="totalRev" class="summary-val">0</span></div>
+            <div class="summary-item">Chi phí: <span id="totalCost" class="summary-val">0</span></div>
+            <div class="summary-item">Lợi nhuận: <span id="totalProfit" class="summary-val">0</span></div>
+        </div>
+        <hr>
+        <div id="displayArea">
+            <div class="section-title">HÔM NAY</div><div id="todayList"></div>
+            <div class="section-title">SẮP TỚI</div><div id="upcomingList"></div>
+            <div class="section-title" id="pastSectionTitle">ĐÃ QUA</div><div id="pastList"></div>
+        </div>
     </div>
 </div>
 
@@ -161,18 +150,47 @@
     };
 
     firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
     const db = firebase.database();
     let trips = {};
 
-    window.onload = function() {
-        const savedGas = localStorage.getItem('userGasPrice');
-        if (savedGas) {
-            document.getElementById('gasPrice').value = savedGas;
+    // XỬ LÝ ĐĂNG NHẬP / ĐĂNG XUẤT
+    function login() {
+        const email = document.getElementById('loginEmail').value;
+        const pass = document.getElementById('loginPassword').value;
+        auth.signInWithEmailAndPassword(email, pass)
+            .then(() => { alert("Đăng nhập thành công!"); })
+            .catch(error => { alert("Sai email hoặc mật khẩu! " + error.message); });
+    }
+
+    function logout() {
+        auth.signOut().then(() => { location.reload(); });
+    }
+
+    // Lắng nghe trạng thái đăng nhập
+    auth.onAuthStateChanged(user => {
+        if (user) {
+            // Đã đăng nhập: Hiện app, ẩn form login, và BẮT ĐẦU TẢI DỮ LIỆU
+            document.getElementById('loginArea').style.display = 'none';
+            document.getElementById('appArea').style.display = 'block';
+            
+            db.ref('trips').on('value', (snapshot) => { 
+                trips = snapshot.val() || {}; 
+                renderTrips(); 
+            });
+            
+            const savedGas = localStorage.getItem('userGasPrice');
+            if (savedGas) {
+                document.getElementById('gasPrice').value = savedGas;
+            }
+        } else {
+            // Chưa đăng nhập: Ẩn app, hiện form login
+            document.getElementById('loginArea').style.display = 'block';
+            document.getElementById('appArea').style.display = 'none';
         }
-    };
+    });
 
-    db.ref('trips').on('value', (snapshot) => { trips = snapshot.val() || {}; renderTrips(); });
-
+    // CÁC HÀM CŨ GIỮ NGUYÊN BÊN DƯỚI
     function toggleDriverFields() { const type = document.getElementById('driverType').value; document.getElementById('hiredDriverFields').style.display = (type === "Tài xế mướn") ? "block" : "none"; }
     function formatNumber(num) { return num.toLocaleString('vi-VN'); }
     
@@ -181,9 +199,7 @@
         if (value !== "") { 
             let formatted = Number(value).toLocaleString('vi-VN');
             input.value = formatted;
-            if (input.id === 'gasPrice') {
-                localStorage.setItem('userGasPrice', formatted);
-            }
+            if (input.id === 'gasPrice') { localStorage.setItem('userGasPrice', formatted); }
         } 
     }
 
@@ -193,47 +209,30 @@
         if(!dtStr) return ""; 
         const d = new Date(dtStr); 
         const days = ['Chủ nhật', 'Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7'];
-        const dayName = days[d.getDay()];
-        const hours = String(d.getHours()).padStart(2, '0');
-        const minutes = String(d.getMinutes()).padStart(2, '0');
-        const day = String(d.getDate()).padStart(2, '0');
-        const month = String(d.getMonth() + 1).padStart(2, '0');
-        const year = d.getFullYear();
-        return `${hours}:${minutes} ${dayName}, ${day}/${month}/${year}`; 
+        return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')} ${days[d.getDay()]}, ${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`; 
     }
 
     function saveTrip() {
         const key = document.getElementById('editKey').value;
         const tripData = {
-            time: document.getElementById('time').value, 
-            duration: document.getElementById('duration').value, /* Đã thêm lưu số ngày */
-            from: document.getElementById('from').value, 
-            to: document.getElementById('to').value, 
-            phone: document.getElementById('phone').value, 
-            note: document.getElementById('note').value || "", 
-            price: getRawNumber('price'), 
-            km: Number(document.getElementById('km').value) || 0, 
-            gasPrice: getRawNumber('gasPrice') || 24220, 
-            road: getRawNumber('road'), 
-            driverType: document.getElementById('driverType').value, 
-            hiredDriverName: document.getElementById('hiredDriverName').value || "", 
-            hiredDriverPhone: document.getElementById('hiredDriverPhone').value || "", 
-            driverCost: getRawNumber('driverCost'), 
+            time: document.getElementById('time').value, duration: document.getElementById('duration').value, 
+            from: document.getElementById('from').value, to: document.getElementById('to').value, 
+            phone: document.getElementById('phone').value, note: document.getElementById('note').value || "", 
+            price: getRawNumber('price'), km: Number(document.getElementById('km').value) || 0, 
+            gasPrice: getRawNumber('gasPrice') || 24220, road: getRawNumber('road'), 
+            driverType: document.getElementById('driverType').value, hiredDriverName: document.getElementById('hiredDriverName').value || "", 
+            hiredDriverPhone: document.getElementById('hiredDriverPhone').value || "", driverCost: getRawNumber('driverCost'), 
             status: key ? (trips[key].status || "pending") : "pending"
         };
         if(!tripData.time || !tripData.from) return alert("Bác điền thiếu thông tin rồi!");
-        if(key) db.ref('trips/' + key).update(tripData);
-        else db.ref('trips').push(tripData);
+        if(key) db.ref('trips/' + key).update(tripData); else db.ref('trips').push(tripData);
         resetForm();
     }
 
     function toggleComplete(key) { 
         if (!trips[key]) return;
         const newStatus = trips[key].status === "completed" ? "pending" : "completed"; 
-        db.ref('trips/' + key).update({ status: newStatus }).then(() => {
-            trips[key].status = newStatus;
-            renderTrips();
-        });
+        db.ref('trips/' + key).update({ status: newStatus }).then(() => { trips[key].status = newStatus; renderTrips(); });
     }
     
     function deleteTrip(key) { if(confirm("Xoá chuyến này?")) db.ref('trips/' + key).remove(); }
@@ -245,25 +244,15 @@
         
         const now = new Date();
         const nowDayStr = now.toLocaleDateString('en-CA');
-        
         const sortedKeys = Object.keys(trips).sort((a, b) => new Date(trips[a].time) - new Date(trips[b].time));
-
         let oldestTripDate = null; 
 
-        // Quét đếm số chuyến trong từng ngày để highlight tua
         const dateCounts = {};
+        sortedKeys.forEach(key => { if (trips[key].time) { const day = trips[key].time.split('T')[0]; dateCounts[day] = (dateCounts[day] || 0) + 1; } });
+
         sortedKeys.forEach(key => {
-            if (trips[key].time) {
-                const day = trips[key].time.split('T')[0];
-                dateCounts[day] = (dateCounts[day] || 0) + 1;
-            }
-        });
-        sortedKeys.forEach(key => {
-            const trip = trips[key];
-            const tripTime = new Date(trip.time);
-            
+            const trip = trips[key]; const tripTime = new Date(trip.time);
             const isDone = trip.status === "completed" || tripTime < now;
-            
             const tripDayStr = trip.time.split('T')[0];
             const fuel = Math.round((trip.km / 15) * (trip.gasPrice || 24220));
             const totalTripCost = fuel + Number(trip.road) + Number(trip.driverCost || 0);
@@ -272,8 +261,6 @@
             tripCount++; totalRev += Number(trip.price); totalCost += totalTripCost;
             
             const fireClass = (tripDayStr === nowDayStr && !isDone) ? 'today-fire-effect' : '';
-            
-            // Logic nhận diện chạy nhiều tua và hiển thị số ngày
             const isMultiTua = (dateCounts[tripDayStr] >= 2);
             const multiTuaClass = (isMultiTua && !isDone) ? 'multiple-trips-day' : '';
             const multiTuaBadge = isMultiTua ? `<span class="multi-tua-badge">Chạy ${dateCounts[tripDayStr]} tua</span>` : '';
@@ -281,126 +268,69 @@
 
             const html = `<div class="trip-item ${isDone ? 'completed-trip' : ''} ${fireClass} ${multiTuaClass}"><div class="trip-info"><strong style="font-size: 15px;">${trip.from} <span class="km-badge">🔥 ${trip.km} KM 🔥</span> ${trip.to}</strong><p>⏰ <span class="time-highlight">${formatDateTime(trip.time)}</span>${durationText}</p><p>📞 Khách: ${trip.phone}</p>${trip.note ? `<p class="trip-note">📝 Ghi chú: ${trip.note}</p>` : ''}${trip.driverType === 'Tài xế mướn' ? `<p>👤 TX Mướn: ${trip.hiredDriverName} - ${trip.hiredDriverPhone}</p>` : ''}<p>💰 Thu: ${formatNumber(trip.price)}đ | 📉 Chi: ${formatNumber(totalTripCost)}đ</p><p>💎 Thực lãi: <span style="color:#28a745; font-weight:bold;">${formatNumber(netProfit)}đ</span></p><span class="driver-tag ${trip.driverType === 'Tài xế nhà' ? 'tag-nha' : 'tag-muon'}">${trip.driverType}</span>${multiTuaBadge}<div class="action-btns"><a href="tel:${trip.phone}" class="btn-call">📞 GỌI KHÁCH</a><button class="btn-edit" onclick="editTrip('${key}')">✏️ SỬA</button><button class="btn-done ${isDone ? 'is-completed' : ''}" onclick="toggleComplete('${key}')">${isDone ? 'XONG' : 'XỬ LÝ'}</button><button class="btn-delete-trip" onclick="deleteTrip('${key}')">🗑️</button></div></div></div>`;
             
-            if (tripDayStr === nowDayStr) {
-                lists.today.innerHTML += html; 
-            } else if (tripDayStr > nowDayStr) {
-                lists.upcoming.innerHTML += html; 
-            } else {
-                lists.past.innerHTML += html;
-                if (!oldestTripDate || tripTime < oldestTripDate) {
-                    oldestTripDate = tripTime;
-                }
-            }
+            if (tripDayStr === nowDayStr) { lists.today.innerHTML += html; } 
+            else if (tripDayStr > nowDayStr) { lists.upcoming.innerHTML += html; } 
+            else { lists.past.innerHTML += html; if (!oldestTripDate || tripTime < oldestTripDate) { oldestTripDate = tripTime; } }
         });
 
         const titleElement = document.getElementById('pastSectionTitle');
-        if (oldestTripDate) {
-            const day = String(oldestTripDate.getDate()).padStart(2, '0');
-            const month = String(oldestTripDate.getMonth() + 1).padStart(2, '0');
-            titleElement.innerText = `ĐÃ QUA (TỪ ${day}/${month})`;
-        } else {
-            titleElement.innerText = "ĐÃ QUA";
-        }
+        if (oldestTripDate) { titleElement.innerText = `ĐÃ QUA (TỪ ${String(oldestTripDate.getDate()).padStart(2, '0')}/${String(oldestTripDate.getMonth() + 1).padStart(2, '0')})`; } 
+        else { titleElement.innerText = "ĐÃ QUA"; }
 
-        document.getElementById('totalTrips').innerText = tripCount;
-        document.getElementById('totalRev').innerText = formatNumber(totalRev) + "đ";
-        document.getElementById('totalCost').innerText = formatNumber(totalCost) + "đ";
-        document.getElementById('totalProfit').innerText = formatNumber(totalRev - totalCost) + "đ";
+        document.getElementById('totalTrips').innerText = tripCount; document.getElementById('totalRev').innerText = formatNumber(totalRev) + "đ";
+        document.getElementById('totalCost').innerText = formatNumber(totalCost) + "đ"; document.getElementById('totalProfit').innerText = formatNumber(totalRev - totalCost) + "đ";
     }
 
     function editTrip(key) {
-        const t = trips[key]; 
-        document.getElementById('editKey').value = key; 
-        document.getElementById('time').value = t.time; 
-        document.getElementById('duration').value = t.duration || "1"; /* Load lại số ngày */
-        document.getElementById('from').value = t.from; 
-        document.getElementById('to').value = t.to; 
-        document.getElementById('phone').value = t.phone; 
-        document.getElementById('note').value = t.note || ""; 
-        document.getElementById('price').value = formatNumber(t.price); 
-        document.getElementById('km').value = t.km; 
-        document.getElementById('road').value = formatNumber(t.road || 0); 
-        document.getElementById('gasPrice').value = formatNumber(t.gasPrice || 24220); 
-        document.getElementById('driverType').value = t.driverType; 
-        document.getElementById('hiredDriverName').value = t.hiredDriverName || ""; 
-        document.getElementById('hiredDriverPhone').value = t.hiredDriverPhone || ""; 
-        document.getElementById('driverCost').value = formatNumber(t.driverCost || 0); 
-        toggleDriverFields(); 
-        document.getElementById('mainBtn').innerText = "CẬP NHẬT"; 
-        window.scrollTo(0,0);
+        const t = trips[key]; document.getElementById('editKey').value = key; 
+        document.getElementById('time').value = t.time; document.getElementById('duration').value = t.duration || "1"; 
+        document.getElementById('from').value = t.from; document.getElementById('to').value = t.to; 
+        document.getElementById('phone').value = t.phone; document.getElementById('note').value = t.note || ""; 
+        document.getElementById('price').value = formatNumber(t.price); document.getElementById('km').value = t.km; 
+        document.getElementById('road').value = formatNumber(t.road || 0); document.getElementById('gasPrice').value = formatNumber(t.gasPrice || 24220); 
+        document.getElementById('driverType').value = t.driverType; document.getElementById('hiredDriverName').value = t.hiredDriverName || ""; 
+        document.getElementById('hiredDriverPhone').value = t.hiredDriverPhone || ""; document.getElementById('driverCost').value = formatNumber(t.driverCost || 0); 
+        toggleDriverFields(); document.getElementById('mainBtn').innerText = "CẬP NHẬT"; window.scrollTo(0,0);
     }
 
     function resetForm() {
-        const currentGas = document.getElementById('gasPrice').value; 
-        document.getElementById('editKey').value = ''; 
+        const currentGas = document.getElementById('gasPrice').value; document.getElementById('editKey').value = ''; 
         document.getElementById('mainBtn').innerText = "THÊM CHUYẾN"; 
         ['time', 'from', 'to', 'phone', 'note', 'price', 'km', 'road', 'hiredDriverName', 'hiredDriverPhone', 'driverCost'].forEach(id => document.getElementById(id).value = ''); 
-        document.getElementById('duration').value = '1'; /* Reset số ngày */
-        document.getElementById('gasPrice').value = currentGas; 
-        document.getElementById('driverType').value = "Tài xế nhà"; 
-        toggleDriverFields();
+        document.getElementById('duration').value = '1'; document.getElementById('gasPrice').value = currentGas; 
+        document.getElementById('driverType').value = "Tài xế nhà"; toggleDriverFields();
     }
 
     function exportToExcel() {
         const sortedKeys = Object.keys(trips).sort((a, b) => new Date(trips[a].time) - new Date(trips[b].time));
         if (!sortedKeys.length) { alert("Không có dữ liệu!"); return; }
-        
         const now = new Date();
         const sortedData = sortedKeys.map(k => {
-            const t = trips[k];
-            const tripTime = new Date(t.time);
-            const fuel = Math.round((t.km / 15) * (t.gasPrice || 24220));
-            const cost = fuel + Number(t.road) + Number(t.driverCost || 0);
-            
-            return {
-                "Trạng Thái": (t.status === "completed" || tripTime < now) ? "Xong" : "Chờ",
-                "Thời Gian": formatDateTime(t.time),
-                "Số Ngày Đi": t.duration ? t.duration + " ngày" : "1 ngày", /* Bổ sung cột excel */
-                "Điểm Đi": t.from,
-                "Điểm Đến": t.to,
-                "Khách Hàng": t.phone,
-                "Số KM": t.km,
-                "Doanh Thu": t.price,
-                "Chi Phí": cost,
-                "Thực Lãi": t.price - cost,
-                "Ghi Chú": (t.note || "").replace(/\n/g, " ")
-            };
+            const t = trips[k]; const tripTime = new Date(t.time);
+            const fuel = Math.round((t.km / 15) * (t.gasPrice || 24220)); const cost = fuel + Number(t.road) + Number(t.driverCost || 0);
+            return { "Trạng Thái": (t.status === "completed" || tripTime < now) ? "Xong" : "Chờ", "Thời Gian": formatDateTime(t.time), "Số Ngày Đi": t.duration ? t.duration + " ngày" : "1 ngày", "Điểm Đi": t.from, "Điểm Đến": t.to, "Khách Hàng": t.phone, "Số KM": t.km, "Doanh Thu": t.price, "Chi Phí": cost, "Thực Lãi": t.price - cost, "Ghi Chú": (t.note || "").replace(/\n/g, " ") };
         });
-        
-        const worksheet = XLSX.utils.json_to_sheet(sortedData);
-        const workbook = XLSX.utils.book_new();
+        const worksheet = XLSX.utils.json_to_sheet(sortedData); const workbook = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(workbook, worksheet, "LichChayXe");
-        
-        // Fix lỗi xuất excel bằng hàm writeFile chuẩn của thư viện SheetJS
-        XLSX.writeFile(workbook, "Lich_Chay_Xe.xlsx");
+        try {
+            const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+            const blob = new Blob([excelBuffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+            const file = new File([blob], "Lich_Chay_Xe.xlsx", { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+            if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+                navigator.share({ files: [file], title: 'Lịch Chạy Xe' }).catch(() => { XLSX.writeFile(workbook, "Lich_Chay_Xe.xlsx"); });
+            } else { XLSX.writeFile(workbook, "Lich_Chay_Xe.xlsx"); }
+        } catch (e) { XLSX.writeFile(workbook, "Lich_Chay_Xe.xlsx"); }
     }
 
     function deleteOldData() { 
-        const now = new Date();
-        const currentYear = now.getFullYear();
-        const currentMonth = now.getMonth(); 
-
-        if (currentMonth === 0) { 
-            var targetYear = currentYear - 1;
-            var targetMonth = 12;
-        } else {
-            var targetYear = currentYear;
-            var targetMonth = currentMonth; 
-        }
-
+        const now = new Date(); const currentYear = now.getFullYear(); const currentMonth = now.getMonth(); 
+        let targetYear = currentYear, targetMonth = currentMonth;
+        if (currentMonth === 0) { targetYear = currentYear - 1; targetMonth = 12; }
         const targetMonthStr = String(targetMonth).padStart(2, '0');
-        
         if (confirm(`Bác có chắc chắn muốn xoá toàn bộ dữ liệu của Tháng ${targetMonth}/${targetYear} không?`)) { 
-            const startDay = `${targetYear}-${targetMonthStr}-01`;
-            const endDay = `${targetYear}-${targetMonthStr}-31T23:59:59`;
-            
+            const startDay = `${targetYear}-${targetMonthStr}-01`; const endDay = `${targetYear}-${targetMonthStr}-31T23:59:59`;
             let count = 0;
-            for (let key in trips) { 
-                if (trips[key].time >= startDay && trips[key].time <= endDay) { 
-                    db.ref('trips/' + key).remove(); 
-                    count++;
-                } 
-            }
+            for (let key in trips) { if (trips[key].time >= startDay && trips[key].time <= endDay) { db.ref('trips/' + key).remove(); count++; } }
             alert(`Đã xoá thành công ${count} chuyến xe của tháng ${targetMonth}!`);
         } 
     }
