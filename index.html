@@ -69,6 +69,7 @@
         .action-btns { margin-top: 6px; display: flex; flex-wrap: wrap; gap: 4px; }
         .action-btns button, .action-btns a { padding: 4px 8px; border-radius: 3px; font-size: 11px; font-weight: bold; border: none; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; }
         .btn-call { background: #28a745; color: white; }
+        .btn-zalo-direct { background: #0084ff !important; color: white !important; } /* CSS Nút Zalo mới */
         .btn-copy { background: #17a2b8; color: white; }
         .btn-edit { background: #ffc107; color: black; }
         .btn-done { background: #6c757d; color: white; }
@@ -286,6 +287,23 @@
         });
     }
 
+    // TÍNH NĂNG MỞ TRỰC TIẾP APP ZALO (MỚI THÊM)
+    function openZalo(key) {
+        const trip = trips[key];
+        if (!trip || !trip.phone) return alert("Không tìm thấy số điện thoại của khách!");
+        
+        // Lọc bỏ ký tự không phải số để lấy SĐT chuẩn
+        let phone = trip.phone.replace(/\D/g, '');
+        
+        // Chuyển đổi đầu số 0 thành 84 (ví dụ 0912 -> 84912)
+        if (phone.startsWith('0')) {
+            phone = '84' + phone.substring(1);
+        }
+        
+        // Mở app Zalo
+        window.location.href = `zalo://conversation?phone=${phone}`;
+    }
+
     function renderTrips() {
         const lists = { today: document.getElementById('todayList'), upcoming: document.getElementById('upcomingList'), past: document.getElementById('pastList') };
         Object.values(lists).forEach(l => l.innerHTML = '');
@@ -306,8 +324,7 @@
             // LỌC THEO Ô TÌM KIẾM
             const searchContent = `${trip.from} ${trip.to} ${trip.phone} ${trip.note} ${trip.hiredDriverName}`.toLowerCase();
             if (searchQuery && !searchContent.includes(searchQuery)) return;
-
-            const tripTime = new Date(trip.time);
+const tripTime = new Date(trip.time);
             const isDone = trip.status === "completed" || tripTime < now;
             const tripDayStr = trip.time.split('T')[0];
             const fuel = Math.round((trip.km / 15) * (trip.gasPrice || 24220));
@@ -335,7 +352,8 @@
                     
                     <div class="action-btns">
                         <a href="tel:${trip.phone}" class="btn-call">📞 Gọi</a>
-                        <button class="btn-copy" onclick="copyTripInfo('${key}')">📋 Zalo</button>
+                        <button class="btn-zalo-direct" onclick="openZalo('${key}')">💬 Zalo</button>
+                        <button class="btn-copy" onclick="copyTripInfo('${key}')">📋 Copy</button>
                         <button class="btn-edit" onclick="editTrip('${key}')">✏️ Sửa</button>
                         <button class="btn-done ${isDone ? 'is-completed' : ''}" onclick="toggleComplete('${key}')">${isDone ? 'Xong' : 'Xử lý'}</button>
                         <button class="btn-delete-trip" onclick="deleteTrip('${key}')">🗑️</button>
@@ -349,7 +367,7 @@
         });
 
         const titleElement = document.getElementById('pastSectionTitle');
-        if (oldestTripDate) { titleElement.innerText = `ĐÃ QUA (TỪ ${String(oldestTripDate.getDate()).padStart(2, '0')}/${String(oldestTripDate.getMonth() + 1).padStart(2, '0')})`; } 
+        if (oldestTripDate) { titleElement.innerText = `ĐÃ qua (TỪ ${String(oldestTripDate.getDate()).padStart(2, '0')}/${String(oldestTripDate.getMonth() + 1).padStart(2, '0')})`; } 
         else { titleElement.innerText = "ĐÃ QUA"; }
 
         document.getElementById('totalTrips').innerText = tripCount; 
