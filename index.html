@@ -8,6 +8,8 @@
     <script src="https://www.gstatic.com/firebasejs/9.18.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.18.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.18.0/firebase-database-compat.js"></script>
+    <!-- THÊM THƯ VIỆN STORAGE ĐỂ CHỨA FILE EXCEL -->
+    <script src="https://www.gstatic.com/firebasejs/9.18.0/firebase-storage-compat.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     
     <style>
@@ -69,7 +71,7 @@
         .action-btns { margin-top: 6px; display: flex; flex-wrap: wrap; gap: 4px; }
         .action-btns button, .action-btns a { padding: 4px 8px; border-radius: 3px; font-size: 11px; font-weight: bold; border: none; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; }
         .btn-call { background: #28a745; color: white; }
-        .btn-zalo-direct { background: #0084ff !important; color: white !important; } /* CSS Nút Zalo mới */
+        .btn-zalo-direct { background: #0084ff !important; color: white !important; } 
         .btn-copy { background: #17a2b8; color: white; }
         .btn-edit { background: #ffc107; color: black; }
         .btn-done { background: #6c757d; color: white; }
@@ -117,6 +119,7 @@
             </select>
         </div>
 
+        <!-- FIX TIẾNG VIỆT CHO Ô NHẬP -->
         <div style="display: flex; gap: 10px;">
             <div class="form-group" style="flex: 1;"><label>Điểm đi</label><input type="text" id="from" spellcheck="false" autocomplete="off" autocorrect="off"></div>
             <div class="form-group" style="flex: 1;"><label>Điểm đến</label><input type="text" id="to" spellcheck="false" autocomplete="off" autocorrect="off"></div>
@@ -124,6 +127,7 @@
 
         <div class="form-group"><label>SĐT/Tên Khách</label><input type="text" id="phone" spellcheck="false" autocomplete="off" autocorrect="off"></div>
         <div class="form-group"><label>Ghi chú</label><textarea id="note" rows="2" spellcheck="false" autocomplete="off" autocorrect="off"></textarea></div>
+        
         <div style="display: flex; gap: 10px;">
             <div class="form-group" style="flex: 1;"><label>Giá chuyến</label><input type="text" id="price" placeholder="2.300.000" oninput="formatInputCurrency(this)"></div>
             <div class="form-group" style="flex: 1;"><label>Số KM</label><input type="number" id="km"></div>
@@ -133,11 +137,13 @@
             <div class="form-group" style="flex: 1;"><label>Cầu đường</label><input type="text" id="road" oninput="formatInputCurrency(this)"></div>
         </div>
         <div class="form-group"><label>Loại tài xế</label><select id="driverType" onchange="toggleDriverFields()"><option value="Tài xế nhà">Tài xế nhà</option><option value="Tài xế mướn">Tài xế mướn</option></select></div>
+        
         <div id="hiredDriverFields">
             <div class="form-group"><label>Tên tài xế mướn</label><input type="text" id="hiredDriverName" spellcheck="false" autocomplete="off" autocorrect="off"></div>
             <div class="form-group"><label>Số điện thoại tài xế</label><input type="text" id="hiredDriverPhone"></div>
             <div class="form-group"><label>Tiền thuê tài xế</label><input type="text" id="driverCost" oninput="formatInputCurrency(this)"></div>
         </div>
+        
         <div class="btn-group">
             <button id="mainBtn" class="btn-add" onclick="saveTrip()">THÊM CHUYẾN</button>
             <button class="btn-excel" onclick="exportToExcel()">XUẤT EXCEL</button>
@@ -151,13 +157,11 @@
             <div class="summary-item">Lợi nhuận<span id="totalProfit" class="summary-val">0</span></div>
         </div>
 
-        <!-- BỔ SUNG Ô TÌM KIẾM NHANH -->
         <div class="search-box">
             <input type="text" id="searchInput" placeholder="🔍 Tìm chuyến theo SĐT, tên khách, địa điểm..." onkeyup="renderTrips()">
         </div>
 
         <div id="displayArea">
-            <!-- CHIA 2 CỘT HÔM NAY VÀ SẮP TỚI -->
             <div class="grid-two-col">
                 <div>
                     <div class="section-title">HÔM NAY</div>
@@ -169,7 +173,6 @@
                 </div>
             </div>
             
-            <!-- ĐÃ QUA NẰM TRẢI DÀI BÊN DƯỚI -->
             <div style="margin-top: 10px;">
                 <div class="section-title" id="pastSectionTitle">ĐÃ QUA</div>
                 <div id="pastList"></div>
@@ -192,9 +195,9 @@
     firebase.initializeApp(firebaseConfig);
     const auth = firebase.auth();
     const db = firebase.database();
+    const storage = firebase.storage(); // KHAI BÁO STORAGE ĐỂ CHỨA FILE
     let trips = {};
 
-    // XỬ LÝ ĐĂNG NHẬP / ĐĂNG XUẤT
     function login() {
         const email = document.getElementById('loginEmail').value;
         const pass = document.getElementById('loginPassword').value;
@@ -207,7 +210,6 @@
         auth.signOut().then(() => { location.reload(); });
     }
 
-    // Lắng nghe trạng thái đăng nhập
     auth.onAuthStateChanged(user => {
         if (user) {
             document.getElementById('loginArea').style.display = 'none';
@@ -239,7 +241,7 @@
             if (input.id === 'gasPrice') { localStorage.setItem('userGasPrice', formatted); }
         } 
     }
-function getRawNumber(id) { let val = document.getElementById(id).value; return Number(val.replace(/\./g, "")) || 0; }
+    function getRawNumber(id) { let val = document.getElementById(id).value; return Number(val.replace(/\./g, "")) || 0; }
     
     function formatDateTime(dtStr) { 
         if(!dtStr) return ""; 
@@ -247,7 +249,6 @@ function getRawNumber(id) { let val = document.getElementById(id).value; return 
         const days = ['Chủ nhật', 'Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7'];
         return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')} ${days[d.getDay()]}, ${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`; 
     }
-
     function saveTrip() {
         const key = document.getElementById('editKey').value;
         const tripData = {
@@ -264,6 +265,7 @@ function getRawNumber(id) { let val = document.getElementById(id).value; return 
         if(key) db.ref('trips/' + key).update(tripData); else db.ref('trips').push(tripData);
         resetForm();
     }
+
     function toggleComplete(key) { 
         if (!trips[key]) return;
         const newStatus = trips[key].status === "completed" ? "pending" : "completed"; 
@@ -272,7 +274,6 @@ function getRawNumber(id) { let val = document.getElementById(id).value; return 
     
     function deleteTrip(key) { if(confirm("Xoá chuyến này?")) db.ref('trips/' + key).remove(); }
 
-    // TÍNH NĂNG COPY THÔNG TIN DÁN VÀO ZALO
     function copyTripInfo(key) {
         const trip = trips[key];
         if(!trip) return;
@@ -285,20 +286,11 @@ function getRawNumber(id) { let val = document.getElementById(id).value; return 
         });
     }
 
-    // TÍNH NĂNG MỞ TRỰC TIẾP APP ZALO (MỚI THÊM)
     function openZalo(key) {
         const trip = trips[key];
         if (!trip || !trip.phone) return alert("Không tìm thấy số điện thoại của khách!");
-        
-        // Lọc bỏ ký tự không phải số để lấy SĐT chuẩn
         let phone = trip.phone.replace(/\D/g, '');
-        
-        // Chuyển đổi đầu số 0 thành 84 (ví dụ 0912 -> 84912)
-        if (phone.startsWith('0')) {
-            phone = '84' + phone.substring(1);
-        }
-        
-        // Mở app Zalo
+        if (phone.startsWith('0')) { phone = '84' + phone.substring(1); }
         window.location.href = `zalo://conversation?phone=${phone}`;
     }
 
@@ -319,10 +311,9 @@ function getRawNumber(id) { let val = document.getElementById(id).value; return 
 
         sortedKeys.forEach(key => {
             const trip = trips[key];
-            // LỌC THEO Ô TÌM KIẾM
             const searchContent = `${trip.from} ${trip.to} ${trip.phone} ${trip.note} ${trip.hiredDriverName}`.toLowerCase();
             if (searchQuery && !searchContent.includes(searchQuery)) return;
-const tripTime = new Date(trip.time);
+            const tripTime = new Date(trip.time);
             const isDone = trip.status === "completed" || tripTime < now;
             const tripDayStr = trip.time.split('T')[0];
             const fuel = Math.round((trip.km / 15) * (trip.gasPrice || 24220));
@@ -394,6 +385,7 @@ const tripTime = new Date(trip.time);
         document.getElementById('driverType').value = "Tài xế nhà"; toggleDriverFields();
     }
 
+    // FIX LỖI TẢI EXCEL BẰNG FIREBASE STORAGE
     function exportToExcel() {
         const sortedKeys = Object.keys(trips).sort((a, b) => new Date(trips[a].time) - new Date(trips[b].time));
         if (!sortedKeys.length) { alert("Không có dữ liệu!"); return; }
@@ -403,39 +395,40 @@ const tripTime = new Date(trip.time);
             const fuel = Math.round((t.km / 15) * (t.gasPrice || 24220)); const cost = fuel + Number(t.road) + Number(t.driverCost || 0);
             return { "Trạng Thái": (t.status === "completed" || tripTime < now) ? "Xong" : "Chờ", "Thời Gian": formatDateTime(t.time), "Số Ngày Đi": t.duration ? t.duration + " ngày" : "1 ngày", "Điểm Đi": t.from, "Điểm Đến": t.to, "Khách Hàng": t.phone, "Số KM": t.km, "Doanh Thu": t.price, "Chi Phí": cost, "Thực Lãi": t.price - cost, "Ghi Chú": (t.note || "").replace(/\n/g, " ") };
         });
+
+        const btnExcel = document.querySelector('.btn-excel');
+        btnExcel.innerText = "ĐANG TẠO LINK...";
+        btnExcel.disabled = true;
+
         const worksheet = XLSX.utils.json_to_sheet(sortedData); const workbook = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(workbook, worksheet, "LichChayXe");
         
         try {
             const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
             const blob = new Blob([excelBuffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
-            const file = new File([blob], "Lich_Chay_Xe.xlsx", { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
             
-            // Thử dùng tính năng chia sẻ gốc của điện thoại trước
-            if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-                navigator.share({ files: [file], title: 'Lịch Chạy Xe' }).catch(() => { forceDownloadApp(excelBuffer); });
-            } else { 
-                // Nếu điện thoại không hỗ trợ chia sẻ file, dùng cách ép tải file cho App
-                forceDownloadApp(excelBuffer); 
-            }
-        } catch (e) { alert("Lỗi tạo file: " + e.message); }
-    }
+            // Đẩy file lên Firebase Storage
+            const fileName = `Lich_Chay_Xe_${new Date().getTime()}.xlsx`;
+            const storageRef = storage.ref().child(`exports/${fileName}`);
+            
+            storageRef.put(blob).then((snapshot) => {
+                return snapshot.ref.getDownloadURL();
+            }).then((downloadURL) => {
+                btnExcel.innerText = "XUẤT EXCEL";
+                btnExcel.disabled = false;
+                // Mở link tải file thật
+                window.location.href = downloadURL;
+            }).catch((error) => {
+                alert("Lỗi tải lên máy chủ: " + error.message);
+                btnExcel.innerText = "XUẤT EXCEL";
+                btnExcel.disabled = false;
+            });
 
-    // Hàm mới: Ép tải xuống bằng định dạng Base64 (Vượt rào chặn download của WebToApp)
-    function forceDownloadApp(excelBuffer) {
-        let binary = '';
-        const bytes = new Uint8Array(excelBuffer);
-        for (let i = 0; i < bytes.byteLength; i++) { binary += String.fromCharCode(bytes[i]); }
-        const base64 = window.btoa(binary);
-        const dataUrl = "data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64," + base64;
-
-        const a = document.createElement('a');
-        a.href = dataUrl;
-        a.download = "Lich_Chay_Xe.xlsx";
-        a.target = "_blank"; // Quan trọng: Ép app đẩy ra ngoài hoặc mở tab mới để tải
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
+        } catch (e) { 
+            alert("Lỗi tạo file: " + e.message); 
+            btnExcel.innerText = "XUẤT EXCEL";
+            btnExcel.disabled = false;
+        }
     }
 
     function deleteOldData() { 
@@ -453,4 +446,3 @@ const tripTime = new Date(trip.time);
 </script>
 </body>
 </html>
-    
