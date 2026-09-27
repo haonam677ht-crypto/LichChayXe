@@ -118,12 +118,12 @@
         </div>
 
         <div style="display: flex; gap: 10px;">
-            <div class="form-group" style="flex: 1;"><label>Điểm đi</label><input type="text" id="from"></div>
-            <div class="form-group" style="flex: 1;"><label>Điểm đến</label><input type="text" id="to"></div>
+            <div class="form-group" style="flex: 1;"><label>Điểm đi</label><input type="text" id="from" spellcheck="false" autocomplete="off" autocorrect="off"></div>
+            <div class="form-group" style="flex: 1;"><label>Điểm đến</label><input type="text" id="to" spellcheck="false" autocomplete="off" autocorrect="off"></div>
         </div>
 
-        <div class="form-group"><label>SĐT/Tên Khách</label><input type="text" id="phone"></div>
-        <div class="form-group"><label>Ghi chú</label><textarea id="note" rows="2"></textarea></div>
+        <div class="form-group"><label>SĐT/Tên Khách</label><input type="text" id="phone" spellcheck="false" autocomplete="off" autocorrect="off"></div>
+        <div class="form-group"><label>Ghi chú</label><textarea id="note" rows="2" spellcheck="false" autocomplete="off" autocorrect="off"></textarea></div>
         <div style="display: flex; gap: 10px;">
             <div class="form-group" style="flex: 1;"><label>Giá chuyến</label><input type="text" id="price" placeholder="2.300.000" oninput="formatInputCurrency(this)"></div>
             <div class="form-group" style="flex: 1;"><label>Số KM</label><input type="number" id="km"></div>
@@ -134,7 +134,7 @@
         </div>
         <div class="form-group"><label>Loại tài xế</label><select id="driverType" onchange="toggleDriverFields()"><option value="Tài xế nhà">Tài xế nhà</option><option value="Tài xế mướn">Tài xế mướn</option></select></div>
         <div id="hiredDriverFields">
-            <div class="form-group"><label>Tên tài xế mướn</label><input type="text" id="hiredDriverName"></div>
+            <div class="form-group"><label>Tên tài xế mướn</label><input type="text" id="hiredDriverName" spellcheck="false" autocomplete="off" autocorrect="off"></div>
             <div class="form-group"><label>Số điện thoại tài xế</label><input type="text" id="hiredDriverPhone"></div>
             <div class="form-group"><label>Tiền thuê tài xế</label><input type="text" id="driverCost" oninput="formatInputCurrency(this)"></div>
         </div>
@@ -239,8 +239,7 @@
             if (input.id === 'gasPrice') { localStorage.setItem('userGasPrice', formatted); }
         } 
     }
-
-    function getRawNumber(id) { let val = document.getElementById(id).value; return Number(val.replace(/\./g, "")) || 0; }
+function getRawNumber(id) { let val = document.getElementById(id).value; return Number(val.replace(/\./g, "")) || 0; }
     
     function formatDateTime(dtStr) { 
         if(!dtStr) return ""; 
@@ -265,7 +264,6 @@
         if(key) db.ref('trips/' + key).update(tripData); else db.ref('trips').push(tripData);
         resetForm();
     }
-
     function toggleComplete(key) { 
         if (!trips[key]) return;
         const newStatus = trips[key].status === "completed" ? "pending" : "completed"; 
@@ -346,7 +344,7 @@ const tripTime = new Date(trip.time);
                     <p>⏰ <span class="time-highlight">${formatDateTime(trip.time)}</span>${durationText}</p>
                     <p>📞 Khách: ${trip.phone}</p>
                     ${trip.note ? `<p class="trip-note">📝 Ghi chú: ${trip.note}</p>` : ''}
-                    ${trip.driverType === 'Tài xế mướn' ? `<p>👤 TX Mướn: ${trip.hiredDriverName} - ${trip.hiredDriverPhone}</p>` : ''}
+                    ${trip.driverType === 'Tài xế mướn' ? `<p>👤 TX Mướn: ${trip.hiredDriverName} -${trip.hiredDriverPhone}</p>` : ''}
                     <p>💰 Thu: <b>${formatNumber(trip.price)}đ</b> | Chi: ${formatNumber(totalTripCost)}đ | Lãi: <span style="color:#28a745; font-weight:bold;">${formatNumber(netProfit)}đ</span></p>
                     <span class="driver-tag ${trip.driverType === 'Tài xế nhà' ? 'tag-nha' : 'tag-muon'}">${trip.driverType}</span>${multiTuaBadge}
                     
@@ -407,14 +405,37 @@ const tripTime = new Date(trip.time);
         });
         const worksheet = XLSX.utils.json_to_sheet(sortedData); const workbook = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(workbook, worksheet, "LichChayXe");
+        
         try {
             const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
             const blob = new Blob([excelBuffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
             const file = new File([blob], "Lich_Chay_Xe.xlsx", { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+            
+            // Thử dùng tính năng chia sẻ gốc của điện thoại trước
             if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-                navigator.share({ files: [file], title: 'Lịch Chạy Xe' }).catch(() => { XLSX.writeFile(workbook, "Lich_Chay_Xe.xlsx"); });
-            } else { XLSX.writeFile(workbook, "Lich_Chay_Xe.xlsx"); }
-        } catch (e) { XLSX.writeFile(workbook, "Lich_Chay_Xe.xlsx"); }
+                navigator.share({ files: [file], title: 'Lịch Chạy Xe' }).catch(() => { forceDownloadApp(excelBuffer); });
+            } else { 
+                // Nếu điện thoại không hỗ trợ chia sẻ file, dùng cách ép tải file cho App
+                forceDownloadApp(excelBuffer); 
+            }
+        } catch (e) { alert("Lỗi tạo file: " + e.message); }
+    }
+
+    // Hàm mới: Ép tải xuống bằng định dạng Base64 (Vượt rào chặn download của WebToApp)
+    function forceDownloadApp(excelBuffer) {
+        let binary = '';
+        const bytes = new Uint8Array(excelBuffer);
+        for (let i = 0; i < bytes.byteLength; i++) { binary += String.fromCharCode(bytes[i]); }
+        const base64 = window.btoa(binary);
+        const dataUrl = "data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64," + base64;
+
+        const a = document.createElement('a');
+        a.href = dataUrl;
+        a.download = "Lich_Chay_Xe.xlsx";
+        a.target = "_blank"; // Quan trọng: Ép app đẩy ra ngoài hoặc mở tab mới để tải
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
     }
 
     function deleteOldData() { 
@@ -432,3 +453,4 @@ const tripTime = new Date(trip.time);
 </script>
 </body>
 </html>
+    
