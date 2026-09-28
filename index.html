@@ -4,12 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Lịch Chạy Xe</title>
-    <!-- Thêm thư viện Auth của Firebase -->
+    <!-- Thư viện Firebase Database (Đã gỡ Storage) -->
     <script src="https://www.gstatic.com/firebasejs/9.18.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.18.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.18.0/firebase-database-compat.js"></script>
-    <!-- THÊM THƯ VIỆN STORAGE ĐỂ CHỨA FILE EXCEL -->
-    <script src="https://www.gstatic.com/firebasejs/9.18.0/firebase-storage-compat.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     
     <style>
@@ -30,7 +28,7 @@
 
         /* CSS cho màn hình đăng nhập */
         #loginArea { text-align: center; margin: 30px auto; max-width: 400px; background: #f8f9fa; padding: 20px; border-radius: 8px; border: 1px solid #ddd; }
-        #appArea { display: none; } /* Ẩn phần mềm khi chưa đăng nhập */
+        #appArea { display: none; }
         .btn-login { background-color: #007bff; color: white; border: none; width: 100%; padding: 10px; border-radius: 5px; font-weight: bold; cursor: pointer; margin-top: 10px; }
         .btn-logout { background-color: #6c757d; color: white; border: none; padding: 6px 10px; border-radius: 5px; cursor: pointer; float: right; font-size: 12px; }
 
@@ -48,16 +46,11 @@
         .summary-item { font-size: 12px; font-weight: bold; color: #555; }
         .summary-val { color: #d9534f; font-size: 13px; display: block; margin-top: 2px; }
         
-        /* CẤU TRÚC 2 CỘT CHO HÔM NAY VÀ SẮP TỚI */
         .grid-two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 15px; }
-        @media (max-width: 650px) {
-            .grid-two-col { grid-template-columns: 1fr; } /* Co về 1 cột trên điện thoại nhỏ */
-            .summary-box { grid-template-columns: 1fr 1fr; }
-        }
+        @media (max-width: 650px) { .grid-two-col { grid-template-columns: 1fr; } .summary-box { grid-template-columns: 1fr 1fr; } }
 
         .section-title { background: #eef5ff; padding: 8px; margin-top: 10px; font-weight: bold; border-bottom: 2px solid #007bff; text-transform: uppercase; text-align: center; color: #007bff; font-size: 13px; border-radius: 4px 4px 0 0; }
         
-        /* THẺ CHUYẾN XE GỌN NHẸ */
         .trip-item { border: 1px solid #e0e0e0; border-radius: 6px; padding: 8px 10px; margin-bottom: 8px; position: relative; border-left: 4px solid #007bff; background: #fff; }
         .trip-info p { margin: 3px 0; font-size: 12px; color: #444; line-height: 1.3; }
         .time-highlight { color: #d9534f; font-size: 13px; font-weight: 800; background: #fff0f0; padding: 1px 4px; border-radius: 3px; }
@@ -67,7 +60,6 @@
         .tag-muon { background: #ffc107; color: #000; }
         .km-badge { background: #ff4500; padding: 1px 5px; border-radius: 8px; color: #fff; font-weight: bold; margin: 0 4px; font-size: 11px; }
         
-        /* NÚT THAO TÁC THU NHỎ */
         .action-btns { margin-top: 6px; display: flex; flex-wrap: wrap; gap: 4px; }
         .action-btns button, .action-btns a { padding: 4px 8px; border-radius: 3px; font-size: 11px; font-weight: bold; border: none; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; }
         .btn-call { background: #28a745; color: white; }
@@ -86,22 +78,13 @@
 <body>
 
 <div class="container">
-    
-    <!-- KHU VỰC ĐĂNG NHẬP -->
     <div id="loginArea">
         <h2>🔒 Đăng Nhập Hệ Thống</h2>
-        <div class="form-group">
-            <label>Email</label>
-            <input type="email" id="loginEmail" placeholder="Nhập email...">
-        </div>
-        <div class="form-group">
-            <label>Mật khẩu</label>
-            <input type="password" id="loginPassword" placeholder="Nhập mật khẩu...">
-        </div>
+        <div class="form-group"><label>Email</label><input type="email" id="loginEmail" placeholder="Nhập email..."></div>
+        <div class="form-group"><label>Mật khẩu</label><input type="password" id="loginPassword" placeholder="Nhập mật khẩu..."></div>
         <button class="btn-login" onclick="login()">ĐĂNG NHẬP</button>
     </div>
 
-    <!-- KHU VỰC PHẦN MỀM -->
     <div id="appArea">
         <button class="btn-logout" onclick="logout()">Đăng xuất</button>
         <h2>LỊCH CHẠY XE</h2>
@@ -119,7 +102,6 @@
             </select>
         </div>
 
-        <!-- FIX TIẾNG VIỆT CHO Ô NHẬP -->
         <div style="display: flex; gap: 10px;">
             <div class="form-group" style="flex: 1;"><label>Điểm đi</label><input type="text" id="from" spellcheck="false" autocomplete="off" autocorrect="off"></div>
             <div class="form-group" style="flex: 1;"><label>Điểm đến</label><input type="text" id="to" spellcheck="false" autocomplete="off" autocorrect="off"></div>
@@ -163,20 +145,10 @@
 
         <div id="displayArea">
             <div class="grid-two-col">
-                <div>
-                    <div class="section-title">HÔM NAY</div>
-                    <div id="todayList"></div>
-                </div>
-                <div>
-                    <div class="section-title">SẮP TỚI</div>
-                    <div id="upcomingList"></div>
-                </div>
+                <div><div class="section-title">HÔM NAY</div><div id="todayList"></div></div>
+                <div><div class="section-title">SẮP TỚI</div><div id="upcomingList"></div></div>
             </div>
-            
-            <div style="margin-top: 10px;">
-                <div class="section-title" id="pastSectionTitle">ĐÃ QUA</div>
-                <div id="pastList"></div>
-            </div>
+            <div style="margin-top: 10px;"><div class="section-title" id="pastSectionTitle">ĐÃ QUA</div><div id="pastList"></div></div>
         </div>
     </div>
 </div>
@@ -195,35 +167,22 @@
     firebase.initializeApp(firebaseConfig);
     const auth = firebase.auth();
     const db = firebase.database();
-    const storage = firebase.storage(); // KHAI BÁO STORAGE ĐỂ CHỨA FILE
     let trips = {};
 
     function login() {
         const email = document.getElementById('loginEmail').value;
         const pass = document.getElementById('loginPassword').value;
-        auth.signInWithEmailAndPassword(email, pass)
-            .then(() => { alert("Đăng nhập thành công!"); })
-            .catch(error => { alert("Sai email hoặc mật khẩu! " + error.message); });
+        auth.signInWithEmailAndPassword(email, pass).then(() => { alert("Đăng nhập thành công!"); }).catch(error => { alert("Sai email hoặc mật khẩu! " + error.message); });
     }
 
-    function logout() {
-        auth.signOut().then(() => { location.reload(); });
-    }
+    function logout() { auth.signOut().then(() => { location.reload(); }); }
 
     auth.onAuthStateChanged(user => {
         if (user) {
             document.getElementById('loginArea').style.display = 'none';
             document.getElementById('appArea').style.display = 'block';
-            
-            db.ref('trips').on('value', (snapshot) => { 
-                trips = snapshot.val() || {}; 
-                renderTrips(); 
-            });
-            
-            const savedGas = localStorage.getItem('userGasPrice');
-            if (savedGas) {
-                document.getElementById('gasPrice').value = savedGas;
-            }
+            db.ref('trips').on('value', (snapshot) => { trips = snapshot.val() || {}; renderTrips(); });
+            const savedGas = localStorage.getItem('userGasPrice'); if (savedGas) document.getElementById('gasPrice').value = savedGas;
         } else {
             document.getElementById('loginArea').style.display = 'block';
             document.getElementById('appArea').style.display = 'none';
@@ -232,99 +191,53 @@
 
     function toggleDriverFields() { const type = document.getElementById('driverType').value; document.getElementById('hiredDriverFields').style.display = (type === "Tài xế mướn") ? "block" : "none"; }
     function formatNumber(num) { return num.toLocaleString('vi-VN'); }
-    
-    function formatInputCurrency(input) { 
-        let value = input.value.replace(/\D/g, ""); 
-        if (value !== "") { 
-            let formatted = Number(value).toLocaleString('vi-VN');
-            input.value = formatted;
-            if (input.id === 'gasPrice') { localStorage.setItem('userGasPrice', formatted); }
-        } 
-    }
+    function formatInputCurrency(input) { let value = input.value.replace(/\D/g, ""); if (value !== "") { let formatted = Number(value).toLocaleString('vi-VN'); input.value = formatted; if (input.id === 'gasPrice') { localStorage.setItem('userGasPrice', formatted); } } }
     function getRawNumber(id) { let val = document.getElementById(id).value; return Number(val.replace(/\./g, "")) || 0; }
-    
-    function formatDateTime(dtStr) { 
-        if(!dtStr) return ""; 
-        const d = new Date(dtStr); 
-        const days = ['Chủ nhật', 'Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7'];
-        return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')} ${days[d.getDay()]}, ${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`; 
-    }
+    function formatDateTime(dtStr) { if(!dtStr) return ""; const d = new Date(dtStr); const days = ['Chủ nhật', 'Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7']; return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')} ${days[d.getDay()]}, ${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`; }
+
     function saveTrip() {
         const key = document.getElementById('editKey').value;
-        const tripData = {
-            time: document.getElementById('time').value, duration: document.getElementById('duration').value, 
-            from: document.getElementById('from').value, to: document.getElementById('to').value, 
-            phone: document.getElementById('phone').value, note: document.getElementById('note').value || "", 
-            price: getRawNumber('price'), km: Number(document.getElementById('km').value) || 0, 
-            gasPrice: getRawNumber('gasPrice') || 24220, road: getRawNumber('road'), 
-            driverType: document.getElementById('driverType').value, hiredDriverName: document.getElementById('hiredDriverName').value || "", 
-            hiredDriverPhone: document.getElementById('hiredDriverPhone').value || "", driverCost: getRawNumber('driverCost'), 
-            status: key ? (trips[key].status || "pending") : "pending"
-        };
+        const tripData = { time: document.getElementById('time').value, duration: document.getElementById('duration').value, from: document.getElementById('from').value, to: document.getElementById('to').value, phone: document.getElementById('phone').value, note: document.getElementById('note').value || "", price: getRawNumber('price'), km: Number(document.getElementById('km').value) || 0, gasPrice: getRawNumber('gasPrice') || 24220, road: getRawNumber('road'), driverType: document.getElementById('driverType').value, hiredDriverName: document.getElementById('hiredDriverName').value || "", hiredDriverPhone: document.getElementById('hiredDriverPhone').value || "", driverCost: getRawNumber('driverCost'), status: key ? (trips[key].status || "pending") : "pending" };
         if(!tripData.time || !tripData.from) return alert("Bác điền thiếu thông tin rồi!");
         if(key) db.ref('trips/' + key).update(tripData); else db.ref('trips').push(tripData);
         resetForm();
     }
 
-    function toggleComplete(key) { 
-        if (!trips[key]) return;
-        const newStatus = trips[key].status === "completed" ? "pending" : "completed"; 
-        db.ref('trips/' + key).update({ status: newStatus }).then(() => { trips[key].status = newStatus; renderTrips(); });
-    }
-    
+    function toggleComplete(key) { if (!trips[key]) return; const newStatus = trips[key].status === "completed" ? "pending" : "completed"; db.ref('trips/' + key).update({ status: newStatus }).then(() => { trips[key].status = newStatus; renderTrips(); }); }
     function deleteTrip(key) { if(confirm("Xoá chuyến này?")) db.ref('trips/' + key).remove(); }
 
     function copyTripInfo(key) {
-        const trip = trips[key];
-        if(!trip) return;
+        const trip = trips[key]; if(!trip) return;
         const info = `🚘 LỊCH CHẠY XE:\n⏰ Thời gian: ${formatDateTime(trip.time)}${trip.duration > 1 ? ` (${trip.duration} ngày)` : ''}\n📍 Tuyến: ${trip.from} ➔ ${trip.to}\n📞 Khách: ${trip.phone}\n📝 Ghi chú: ${trip.note || 'Không'}\n👤 Tài xế: ${trip.driverType === 'Tài xế mướn' ? trip.hiredDriverName + ' (' + trip.hiredDriverPhone + ')' : 'Tài xế nhà'}`;
-        
-        navigator.clipboard.writeText(info).then(() => {
-            alert("Đã chép thông tin chuyến! Bác có thể dán (Paste) gửi qua Zalo ngay.");
-        }).catch(() => {
-            alert("Lỗi khi chép thông tin.");
-        });
+        navigator.clipboard.writeText(info).then(() => alert("Đã chép thông tin chuyến!")).catch(() => alert("Lỗi khi chép thông tin."));
     }
 
     function openZalo(key) {
-        const trip = trips[key];
-        if (!trip || !trip.phone) return alert("Không tìm thấy số điện thoại của khách!");
-        let phone = trip.phone.replace(/\D/g, '');
-        if (phone.startsWith('0')) { phone = '84' + phone.substring(1); }
+        const trip = trips[key]; if (!trip || !trip.phone) return alert("Không tìm thấy số điện thoại!");
+        let phone = trip.phone.replace(/\D/g, ''); if (phone.startsWith('0')) { phone = '84' + phone.substring(1); }
         window.location.href = `zalo://conversation?phone=${phone}`;
     }
 
     function renderTrips() {
         const lists = { today: document.getElementById('todayList'), upcoming: document.getElementById('upcomingList'), past: document.getElementById('pastList') };
-        Object.values(lists).forEach(l => l.innerHTML = '');
-        let totalRev = 0, totalCost = 0, tripCount = 0;
-        
+        Object.values(lists).forEach(l => l.innerHTML = ''); let totalRev = 0, totalCost = 0, tripCount = 0;
         const searchQuery = (document.getElementById('searchInput')?.value || '').toLowerCase().trim();
-
-        const now = new Date();
-        const nowDayStr = now.toLocaleDateString('en-CA');
+        const now = new Date(); const nowDayStr = now.toLocaleDateString('en-CA');
         const sortedKeys = Object.keys(trips).sort((a, b) => new Date(trips[a].time) - new Date(trips[b].time));
-        let oldestTripDate = null; 
-
-        const dateCounts = {};
+        let oldestTripDate = null; const dateCounts = {};
         sortedKeys.forEach(key => { if (trips[key].time) { const day = trips[key].time.split('T')[0]; dateCounts[day] = (dateCounts[day] || 0) + 1; } });
 
         sortedKeys.forEach(key => {
             const trip = trips[key];
             const searchContent = `${trip.from} ${trip.to} ${trip.phone} ${trip.note} ${trip.hiredDriverName}`.toLowerCase();
             if (searchQuery && !searchContent.includes(searchQuery)) return;
-            const tripTime = new Date(trip.time);
-            const isDone = trip.status === "completed" || tripTime < now;
+            const tripTime = new Date(trip.time); const isDone = trip.status === "completed" || tripTime < now;
             const tripDayStr = trip.time.split('T')[0];
-            const fuel = Math.round((trip.km / 15) * (trip.gasPrice || 24220));
-            const totalTripCost = fuel + Number(trip.road) + Number(trip.driverCost || 0);
-            const netProfit = trip.price - totalTripCost;
-            
+            const fuel = Math.round((trip.km / 15) * (trip.gasPrice || 24220)); const totalTripCost = fuel + Number(trip.road) + Number(trip.driverCost || 0); const netProfit = trip.price - totalTripCost;
             tripCount++; totalRev += Number(trip.price); totalCost += totalTripCost;
             
             const fireClass = (tripDayStr === nowDayStr && !isDone) ? 'today-fire-effect' : '';
-            const isMultiTua = (dateCounts[tripDayStr] >= 2);
-            const multiTuaClass = (isMultiTua && !isDone) ? 'multiple-trips-day' : '';
+            const isMultiTua = (dateCounts[tripDayStr] >= 2); const multiTuaClass = (isMultiTua && !isDone) ? 'multiple-trips-day' : '';
             const multiTuaBadge = isMultiTua ? `<span class="multi-tua-badge">Tua ${dateCounts[tripDayStr]}</span>` : '';
             const durationText = (trip.duration && trip.duration > 1) ? `<span style="color: #007bff; font-weight: bold; margin-left: 3px;">(${trip.duration} ngày)</span>` : '';
 
@@ -350,19 +263,12 @@
                 </div>
             </div>`;
             
-            if (tripDayStr === nowDayStr) { lists.today.innerHTML += html; } 
-            else if (tripDayStr > nowDayStr) { lists.upcoming.innerHTML += html; } 
-            else { lists.past.innerHTML += html; if (!oldestTripDate || tripTime < oldestTripDate) { oldestTripDate = tripTime; } }
+            if (tripDayStr === nowDayStr) { lists.today.innerHTML += html; } else if (tripDayStr > nowDayStr) { lists.upcoming.innerHTML += html; } else { lists.past.innerHTML += html; if (!oldestTripDate || tripTime < oldestTripDate) { oldestTripDate = tripTime; } }
         });
 
         const titleElement = document.getElementById('pastSectionTitle');
-        if (oldestTripDate) { titleElement.innerText = `ĐÃ qua (TỪ ${String(oldestTripDate.getDate()).padStart(2, '0')}/${String(oldestTripDate.getMonth() + 1).padStart(2, '0')})`; } 
-        else { titleElement.innerText = "ĐÃ QUA"; }
-
-        document.getElementById('totalTrips').innerText = tripCount; 
-        document.getElementById('totalRev').innerText = formatNumber(totalRev) + "đ";
-        document.getElementById('totalCost').innerText = formatNumber(totalCost) + "đ"; 
-        document.getElementById('totalProfit').innerText = formatNumber(totalRev - totalCost) + "đ";
+        if (oldestTripDate) { titleElement.innerText = `ĐÃ qua (TỪ ${String(oldestTripDate.getDate()).padStart(2, '0')}/${String(oldestTripDate.getMonth() + 1).padStart(2, '0')})`; } else { titleElement.innerText = "ĐÃ QUA"; }
+        document.getElementById('totalTrips').innerText = tripCount; document.getElementById('totalRev').innerText = formatNumber(totalRev) + "đ"; document.getElementById('totalCost').innerText = formatNumber(totalCost) + "đ"; document.getElementById('totalProfit').innerText = formatNumber(totalRev - totalCost) + "đ";
     }
 
     function editTrip(key) {
@@ -378,14 +284,12 @@
     }
 
     function resetForm() {
-        const currentGas = document.getElementById('gasPrice').value; document.getElementById('editKey').value = ''; 
-        document.getElementById('mainBtn').innerText = "THÊM CHUYẾN"; 
+        const currentGas = document.getElementById('gasPrice').value; document.getElementById('editKey').value = ''; document.getElementById('mainBtn').innerText = "THÊM CHUYẾN"; 
         ['time', 'from', 'to', 'phone', 'note', 'price', 'km', 'road', 'hiredDriverName', 'hiredDriverPhone', 'driverCost'].forEach(id => document.getElementById(id).value = ''); 
-        document.getElementById('duration').value = '1'; document.getElementById('gasPrice').value = currentGas; 
-        document.getElementById('driverType').value = "Tài xế nhà"; toggleDriverFields();
+        document.getElementById('duration').value = '1'; document.getElementById('gasPrice').value = currentGas; document.getElementById('driverType').value = "Tài xế nhà"; toggleDriverFields();
     }
 
-    // FIX LỖI TẢI EXCEL BẰNG FIREBASE STORAGE
+    // PHƯƠNG PHÁP XUẤT EXCEL MỚI TRỊ APP BỌC WEB (KHÔNG CẦN FIREBASE STORAGE)
     function exportToExcel() {
         const sortedKeys = Object.keys(trips).sort((a, b) => new Date(trips[a].time) - new Date(trips[b].time));
         if (!sortedKeys.length) { alert("Không có dữ liệu!"); return; }
@@ -396,50 +300,56 @@
             return { "Trạng Thái": (t.status === "completed" || tripTime < now) ? "Xong" : "Chờ", "Thời Gian": formatDateTime(t.time), "Số Ngày Đi": t.duration ? t.duration + " ngày" : "1 ngày", "Điểm Đi": t.from, "Điểm Đến": t.to, "Khách Hàng": t.phone, "Số KM": t.km, "Doanh Thu": t.price, "Chi Phí": cost, "Thực Lãi": t.price - cost, "Ghi Chú": (t.note || "").replace(/\n/g, " ") };
         });
 
-        const btnExcel = document.querySelector('.btn-excel');
-        btnExcel.innerText = "ĐANG TẠO LINK...";
-        btnExcel.disabled = true;
-
-        const worksheet = XLSX.utils.json_to_sheet(sortedData); const workbook = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(workbook, worksheet, "LichChayXe");
-        
         try {
+            const worksheet = XLSX.utils.json_to_sheet(sortedData); 
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "LichChayXe");
+            
+            // Tạo file Excel dưới dạng nhị phân (ArrayBuffer)
             const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
             const blob = new Blob([excelBuffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
-            
-            // Đẩy file lên Firebase Storage
             const fileName = `Lich_Chay_Xe_${new Date().getTime()}.xlsx`;
-            const storageRef = storage.ref().child(`exports/${fileName}`);
-            
-            storageRef.put(blob).then((snapshot) => {
-                return snapshot.ref.getDownloadURL();
-            }).then((downloadURL) => {
-                btnExcel.innerText = "XUẤT EXCEL";
-                btnExcel.disabled = false;
-                // Mở link tải file thật
-                window.location.href = downloadURL;
-            }).catch((error) => {
-                alert("Lỗi tải lên máy chủ: " + error.message);
-                btnExcel.innerText = "XUẤT EXCEL";
-                btnExcel.disabled = false;
-            });
 
+            // CÁCH 1: THỬ GỌI TÍNH NĂNG "CHIA SẺ" GỐC CỦA ĐIỆN THOẠI (CỰC MẠNH)
+            const file = new File([blob], fileName, { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                navigator.share({
+                    files: [file],
+                    title: 'Lịch Chạy Xe',
+                    text: 'Danh sách lịch chạy xe'
+                }).catch((error) => {
+                    console.log('Huỷ chia sẻ hoặc lỗi:', error);
+                    // Nếu lỗi chia sẻ thì ép tải xuống
+                    forceDirectDownload(blob, fileName);
+                });
+            } else {
+                // CÁCH 2: ÉP TẢI XUỐNG DÀNH CHO TRÌNH DUYỆT THƯỜNG
+                forceDirectDownload(blob, fileName);
+            }
         } catch (e) { 
             alert("Lỗi tạo file: " + e.message); 
-            btnExcel.innerText = "XUẤT EXCEL";
-            btnExcel.disabled = false;
         }
     }
 
+    // Hàm phụ trợ ép tải file
+    function forceDirectDownload(blob, fileName) {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => window.URL.revokeObjectURL(url), 1000);
+    }
+
     function deleteOldData() { 
-        const now = new Date(); const currentYear = now.getFullYear(); const currentMonth = now.getMonth(); 
-        let targetYear = currentYear, targetMonth = currentMonth;
+        const now = new Date(); const currentYear = now.getFullYear(); const currentMonth = now.getMonth(); let targetYear = currentYear, targetMonth = currentMonth;
         if (currentMonth === 0) { targetYear = currentYear - 1; targetMonth = 12; }
         const targetMonthStr = String(targetMonth).padStart(2, '0');
         if (confirm(`Bác có chắc chắn muốn xoá toàn bộ dữ liệu của Tháng ${targetMonth}/${targetYear} không?`)) { 
             const startDay = `${targetYear}-${targetMonthStr}-01`; const endDay = `${targetYear}-${targetMonthStr}-31T23:59:59`;
-            let count = 0;
-            for (let key in trips) { if (trips[key].time >= startDay && trips[key].time <= endDay) { db.ref('trips/' + key).remove(); count++; } }
+            let count = 0; for (let key in trips) { if (trips[key].time >= startDay && trips[key].time <= endDay) { db.ref('trips/' + key).remove(); count++; } }
             alert(`Đã xoá thành công ${count} chuyến xe của tháng ${targetMonth}!`);
         } 
     }
