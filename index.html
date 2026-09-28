@@ -202,7 +202,6 @@
         if(key) db.ref('trips/' + key).update(tripData); else db.ref('trips').push(tripData);
         resetForm();
     }
-
     function toggleComplete(key) { if (!trips[key]) return; const newStatus = trips[key].status === "completed" ? "pending" : "completed"; db.ref('trips/' + key).update({ status: newStatus }).then(() => { trips[key].status = newStatus; renderTrips(); }); }
     function deleteTrip(key) { if(confirm("Xoá chuyến này?")) db.ref('trips/' + key).remove(); }
 
@@ -290,7 +289,7 @@
     }
 
     // PHƯƠNG PHÁP XUẤT EXCEL MỚI TRỊ APP BỌC WEB (KHÔNG CẦN FIREBASE STORAGE)
-    function exportToExcel() {
+        function exportToExcel() {
         const sortedKeys = Object.keys(trips).sort((a, b) => new Date(trips[a].time) - new Date(trips[b].time));
         if (!sortedKeys.length) { alert("Không có dữ liệu!"); return; }
         const now = new Date();
@@ -305,27 +304,19 @@
             const workbook = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(workbook, worksheet, "LichChayXe");
             
-            // Tạo file Excel dưới dạng nhị phân (ArrayBuffer)
+            // XUẤT DẠNG BLOB (Để kích hoạt bảng "Save As" của app)
             const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
             const blob = new Blob([excelBuffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
-            const fileName = `Lich_Chay_Xe_${new Date().getTime()}.xlsx`;
-
-            // CÁCH 1: THỬ GỌI TÍNH NĂNG "CHIA SẺ" GỐC CỦA ĐIỆN THOẠI (CỰC MẠNH)
-            const file = new File([blob], fileName, { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
-            if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                navigator.share({
-                    files: [file],
-                    title: 'Lịch Chạy Xe',
-                    text: 'Danh sách lịch chạy xe'
-                }).catch((error) => {
-                    console.log('Huỷ chia sẻ hoặc lỗi:', error);
-                    // Nếu lỗi chia sẻ thì ép tải xuống
-                    forceDirectDownload(blob, fileName);
-                });
-            } else {
-                // CÁCH 2: ÉP TẢI XUỐNG DÀNH CHO TRÌNH DUYỆT THƯỜNG
-                forceDirectDownload(blob, fileName);
-            }
+            
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = "Lich_Chay_Xe.xlsx"; // App sẽ tự bắt tên này
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            setTimeout(() => window.URL.revokeObjectURL(url), 1000);
+            
         } catch (e) { 
             alert("Lỗi tạo file: " + e.message); 
         }
